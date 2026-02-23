@@ -1,0 +1,10 @@
+[package]
+name = "css"
+kind = "lib"
+unsafe = false
+
+[dependencies]
+"builder" = ""
+"array" = ""
+"arith" = ""
+"str" = ""

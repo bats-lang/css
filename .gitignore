@@ -1,0 +1,4 @@
+build/
+dist/
+docs/
+bats_modules/

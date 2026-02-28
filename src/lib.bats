@@ -83,15 +83,11 @@ fn bput {sn:nat} (b: !$B.builder, s: string sn): void = let
   fun loop {sn:nat}{fuel:nat} .<fuel>.
     (b: !$B.builder, s: string sn, slen: int sn, i: int, fuel: int fuel): void =
     if fuel <= 0 then ()
-    else let val ii = g1ofg0(i) in
-      if ii >= 0 then
-        if $AR.lt1_int_int(ii, slen) then let
-          val c = char2int0(string_get_at(s, ii))
-          val () = $B.put_byte(b, c)
-        in loop(b, s, slen, i + 1, fuel - 1) end
-        else ()
-      else ()
-    end
+    else let
+      val ii = $AR.checked_idx(i, slen)
+      val c = char2int0(string_get_at(s, ii))
+      val () = $B.put_byte(b, c)
+    in loop(b, s, slen, i + 1, fuel - 1) end
   val slen = g1u2i(string1_length(s))
 in loop(b, s, slen, 0, $AR.checked_nat(g0ofg1(slen) + 1)) end
 
@@ -99,15 +95,11 @@ fn put_text {n:pos} (b: !$B.builder, t: $A.text(n), len: int n): void = let
   fun loop {n:pos}{fuel:nat} .<fuel>.
     (b: !$B.builder, t: $A.text(n), i: int, len: int n, fuel: int fuel): void =
     if fuel <= 0 then ()
-    else let val ii = g1ofg0(i) in
-      if ii >= 0 then
-        if $AR.lt1_int_int(ii, len) then let
-          val c = $A.text_get(t, ii)
-          val () = $B.put_byte(b, c)
-        in loop(b, t, i + 1, len, fuel - 1) end
-        else ()
-      else ()
-    end
+    else let
+      val ii = $AR.checked_idx(i, len)
+      val c = $A.text_get(t, ii)
+      val () = $B.put_byte(b, c)
+    in loop(b, t, i + 1, len, fuel - 1) end
 in loop(b, t, 0, len, $AR.checked_nat(len)) end
 
 fn put_int(b: !$B.builder, v: int): void = let

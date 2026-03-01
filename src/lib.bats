@@ -72,8 +72,13 @@
 #pub datatype css_declaration =
   | {n:pos} Decl of ($A.text(n), int(n), css_value)
 
-#pub datatype css_rule =
+#pub datatype css_rule_list =
+  | RuleNil of ()
+  | RuleCons of (css_rule, css_rule_list)
+
+and css_rule =
   | Rule of (css_selector, css_declaration)
+  | {nq:nat} MediaQuery of (string nq, css_rule_list)
 
 (* ============================================================
    Emit helpers
@@ -235,9 +240,24 @@ fn put_scaled(b: !$B.builder, value: int, dp: int): void =
    Emit: rule
    ============================================================ *)
 
+#pub fun emit_rule_list(b: !$B.builder, lst: css_rule_list): void
+
 #pub fn emit_rule(b: !$B.builder, r: css_rule): void =
   case+ r of
   | Rule(sel, decl) => let
       val () = emit_selector(b, sel) val () = bput(b, " {\n")
       val () = emit_declaration(b, decl)
     in bput(b, "}\n") end
+  | MediaQuery(query, rules) => let
+      val () = bput(b, "@media ")
+      val () = bput(b, query)
+      val () = bput(b, " {\n")
+      val () = emit_rule_list(b, rules)
+    in bput(b, "}\n") end
+
+implement emit_rule_list(b, lst) =
+  case+ lst of
+  | RuleNil() => ()
+  | RuleCons(r, rest) => let
+      val () = emit_rule(b, r)
+    in emit_rule_list(b, rest) end

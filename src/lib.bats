@@ -159,7 +159,9 @@ fn put_scaled(b: !$B.builder, value: int, dp: int): void =
    Emit: unit
    ============================================================ *)
 
-#pub fn emit_unit(b: !$B.builder, u: css_unit): void =
+#pub fn emit_unit(b: !$B.builder, u: css_unit): void
+
+implement emit_unit(b, u) =
   case+ u of
   | PX() => bput(b, "px") | PT() => bput(b, "pt") | PC() => bput(b, "pc")
   | CM() => bput(b, "cm") | MM() => bput(b, "mm") | IN_unit() => bput(b, "in")
@@ -191,7 +193,9 @@ fn put_scaled(b: !$B.builder, value: int, dp: int): void =
    Emit: value
    ============================================================ *)
 
-#pub fn emit_value(b: !$B.builder, v: css_value): void =
+#pub fn emit_value(b: !$B.builder, v: css_value): void
+
+implement emit_value(b, v) =
   case+ v of
   | Keyword(kw, len) => put_text(b, kw, len)
   | Number_scaled(n, dp, u) => let
@@ -242,7 +246,9 @@ fn put_scaled(b: !$B.builder, value: int, dp: int): void =
 
 #pub fun emit_rule_list(b: !$B.builder, lst: css_rule_list): void
 
-#pub fn emit_rule(b: !$B.builder, r: css_rule): void =
+#pub fn emit_rule(b: !$B.builder, r: css_rule): void
+
+implement emit_rule(b, r) =
   case+ r of
   | Rule(sel, decl) => let
       val () = emit_selector(b, sel) val () = bput(b, " {\n")

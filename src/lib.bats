@@ -216,7 +216,9 @@ implement emit_value(b, v) =
    Emit: selector
    ============================================================ *)
 
-#pub fun emit_selector(b: !$B.builder, s: css_selector): void =
+#pub fun emit_selector(b: !$B.builder, s: css_selector): void
+
+implement emit_selector(b, s) =
   case+ s of
   | Class(name, len) => let val () = $B.put_byte(b, 46) in put_text(b, name, len) end
   | Id(name, len) => let val () = $B.put_byte(b, 35) in put_text(b, name, len) end

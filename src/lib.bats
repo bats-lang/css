@@ -176,7 +176,9 @@ implement emit_unit(b, u) =
    Emit: color
    ============================================================ *)
 
-#pub fn emit_color(b: !$B.builder, c: css_color): void =
+#pub fn emit_color(b: !$B.builder, c: css_color): void
+
+implement emit_color(b, c) =
   case+ c of
   | RGB(r, g, bb) => let
       val () = bput(b, "rgb(") val () = put_int(b, r) val () = bput(b, ", ")
@@ -233,7 +235,9 @@ implement emit_value(b, v) =
    Emit: declaration
    ============================================================ *)
 
-#pub fn emit_declaration(b: !$B.builder, d: css_declaration): void =
+#pub fn emit_declaration(b: !$B.builder, d: css_declaration): void
+
+implement emit_declaration(b, d) =
   case+ d of
   | Decl(prop, len, val_) => let
       val () = bput(b, "  ") val () = put_text(b, prop, len)

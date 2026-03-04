@@ -78,7 +78,7 @@
 
 and css_rule =
   | Rule of (css_selector, css_declaration)
-  | {nq:nat} MediaQuery of (string nq, css_rule_list)
+  | MediaQuery of (string nq, css_rule_list)
 
 (* ============================================================
    Emit helpers
@@ -260,7 +260,7 @@ implement emit_rule(b, r) =
       val () = emit_selector(b, sel) val () = bput(b, " {\n")
       val () = emit_declaration(b, decl)
     in bput(b, "}\n") end
-  | {nq:nat} MediaQuery(query, rules) => let
+  | MediaQuery(query, rules) => let
       val () = bput(b, "@media ")
       val () = bput(b, query)
       val () = bput(b, " {\n")

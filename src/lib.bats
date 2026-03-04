@@ -103,7 +103,7 @@ fn put_text {n:pos} (b: !$B.builder, t: $A.text(n), len: int n): void = let
     else let
       val ii = $AR.checked_idx(i, len)
       val c = $A.text_get(t, ii)
-      val () = $B.put_byte(b, c)
+      val () = $B.put_byte(b, byte2int0(c))
     in loop(b, t, i + 1, len, fuel - 1) end
 in loop(b, t, 0, len, $AR.checked_nat(len)) end
 

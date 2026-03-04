@@ -50,7 +50,7 @@
   | Number_scaled of (int, int, css_unit)
   | Number_bare of (int)
   | Color of (css_color)
-  | {ns:nat} Str of (string ns)
+  | {ns:pos} Str of (string ns)
   | {n:pos} Var_ref of ($A.text(n), int(n))
 
 (* ============================================================
@@ -78,13 +78,13 @@
 
 and css_rule =
   | Rule of (css_selector, css_declaration)
-  | {nq:nat} MediaQuery of (string nq, css_rule_list)
+  | {nq:pos} MediaQuery of (string nq, css_rule_list)
 
 (* ============================================================
    Emit helpers
    ============================================================ *)
 
-fn bput {sn:nat} (b: !$B.builder, s: string sn): void = let
+fn bput {sn:pos} (b: !$B.builder, s: string sn): void = let
   fun loop {sn:pos}{fuel:nat} .<fuel>.
     (b: !$B.builder, s: string sn, slen: int sn, i: int, fuel: int fuel): void =
     if fuel <= 0 then ()
@@ -94,10 +94,7 @@ fn bput {sn:nat} (b: !$B.builder, s: string sn): void = let
       val () = $B.put_byte(b, c)
     in loop(b, s, slen, i + 1, fuel - 1) end
   val slen = g1u2i(string1_length(s))
-in
-  if slen > 0 then loop(b, s, slen, 0, $AR.checked_nat(g0ofg1(slen) + 1))
-  else ()
-end
+in loop(b, s, slen, 0, $AR.checked_nat(g0ofg1(slen) + 1)) end
 
 fn put_text {n:pos} (b: !$B.builder, t: $A.text(n), len: int n): void = let
   fun loop {n:pos}{fuel:nat} .<fuel>.

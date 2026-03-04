@@ -78,7 +78,7 @@
 
 and css_rule =
   | Rule of (css_selector, css_declaration)
-  | MediaQuery of (string nq, css_rule_list)
+  | {nq:nat} MediaQuery of (string nq, css_rule_list)
 
 (* ============================================================
    Emit helpers

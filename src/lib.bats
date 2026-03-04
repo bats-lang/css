@@ -50,7 +50,7 @@
   | Number_scaled of (int, int, css_unit)
   | Number_bare of (int)
   | Color of (css_color)
-  | Str of (string)
+  | {ns:nat} Str of (string ns)
   | {n:pos} Var_ref of ($A.text(n), int(n))
 
 (* ============================================================

@@ -84,30 +84,30 @@ and css_rule =
    Emit helpers
    ============================================================ *)
 
-fn bput {sn:pos} (b: !$B.builder0, s: string sn): void = let
+fn bput {sn:pos} (b: !$B.builder_v >> $B.builder_v, s: string sn): void = let
   fun loop {sn:pos}{fuel:nat} .<fuel>.
-    (b: !$B.builder0, s: string sn, slen: int sn, i: int, fuel: int fuel): void =
+    (b: !$B.builder_v >> $B.builder_v, s: string sn, slen: int sn, i: int, fuel: int fuel): void =
     if fuel <= 0 then ()
     else let
       val ii = $AR.checked_idx(i, slen)
       val c = char2int0(string_get_at(s, ii))
-      val () = $B.put_byte_safe(b, c)
+      val () = $B.put_char(b, c)
     in loop(b, s, slen, i + 1, fuel - 1) end
   val slen = g1u2i(string1_length(s))
 in loop(b, s, slen, 0, $AR.checked_nat(g0ofg1(slen) + 1)) end
 
-fn put_text {n:pos} (b: !$B.builder0, t: $A.text(n), len: int n): void = let
+fn put_text {n:pos} (b: !$B.builder_v >> $B.builder_v, t: $A.text(n), len: int n): void = let
   fun loop {n:pos}{fuel:nat} .<fuel>.
-    (b: !$B.builder0, t: $A.text(n), i: int, len: int n, fuel: int fuel): void =
+    (b: !$B.builder_v >> $B.builder_v, t: $A.text(n), i: int, len: int n, fuel: int fuel): void =
     if fuel <= 0 then ()
     else let
       val ii = $AR.checked_idx(i, len)
       val c = $A.text_get(t, ii)
-      val () = $B.put_byte_safe(b, byte2int0(c))
+      val () = $B.put_char(b, byte2int0(c))
     in loop(b, t, i + 1, len, fuel - 1) end
 in loop(b, t, 0, len, $AR.checked_nat(len)) end
 
-fn put_int(b: !$B.builder0, v: int): void = let
+fn put_int(b: !$B.builder_v >> $B.builder_v, v: int): void = let
   val is_neg = v < 0
   val abs_v = (if is_neg then 0 - v else v): int
   fun count {k:nat} .<k>. (v: int, r: int(k)): int =
@@ -116,18 +116,18 @@ fn put_int(b: !$B.builder0, v: int): void = let
     else 1 + count(v / 10, r - 1)
   val nd = count(abs_v, $AR.checked_nat(abs_v + 1))
   fun write {fuel:nat} .<fuel>.
-    (b: !$B.builder0, v: int, pos: int, fuel: int fuel): void =
+    (b: !$B.builder_v >> $B.builder_v, v: int, pos: int, fuel: int fuel): void =
     if fuel <= 0 then ()
-    else if v < 10 then $B.put_byte_safe(b, v + 48)
+    else if v < 10 then $B.put_char(b, v + 48)
     else let
       val () = write(b, v / 10, pos - 1, fuel - 1)
-    in $B.put_byte_safe(b, (v mod 10) + 48) end
+    in $B.put_char(b, (v mod 10) + 48) end
 in
-  if is_neg then $B.put_byte_safe(b, 45);
+  if is_neg then $B.put_char(b, 45);
   write(b, abs_v, nd - 1, $AR.checked_nat(nd + 1))
 end
 
-fn put_scaled(b: !$B.builder0, value: int, dp: int): void =
+fn put_scaled(b: !$B.builder_v >> $B.builder_v, value: int, dp: int): void =
   if dp <= 0 then put_int(b, value)
   else let
     val is_neg = value < 0
@@ -138,18 +138,18 @@ fn put_scaled(b: !$B.builder0, value: int, dp: int): void =
     val divisor = pow10(1, $AR.checked_nat(dp))
     val int_part = abs_v / divisor
     val frac_part = abs_v mod divisor
-    val () = (if is_neg then $B.put_byte_safe(b, 45) else ())
+    val () = (if is_neg then $B.put_char(b, 45) else ())
     val () = put_int(b, int_part)
-    val () = $B.put_byte_safe(b, 46)
+    val () = $B.put_char(b, 46)
     fun pad {fuel:nat} .<fuel>.
-      (b: !$B.builder0, frac: int, width: int, fuel: int fuel): void =
+      (b: !$B.builder_v >> $B.builder_v, frac: int, width: int, fuel: int fuel): void =
       if fuel <= 0 then ()
       else if width <= 1 then put_int(b, frac)
       else let
         val threshold = pow10(1, $AR.checked_nat(width - 1))
       in
         if frac < threshold then let
-          val () = $B.put_byte_safe(b, 48)
+          val () = $B.put_char(b, 48)
         in pad(b, frac, width - 1, fuel - 1) end
         else put_int(b, frac)
       end
@@ -159,7 +159,7 @@ fn put_scaled(b: !$B.builder0, value: int, dp: int): void =
    Emit: unit
    ============================================================ *)
 
-#pub fn emit_unit(b: !$B.builder0, u: css_unit): void
+#pub fn emit_unit(b: !$B.builder_v >> $B.builder_v, u: css_unit): void
 
 implement emit_unit(b, u) =
   case+ u of
@@ -176,7 +176,7 @@ implement emit_unit(b, u) =
    Emit: color
    ============================================================ *)
 
-#pub fn emit_color(b: !$B.builder0, c: css_color): void
+#pub fn emit_color(b: !$B.builder_v >> $B.builder_v, c: css_color): void
 
 implement emit_color(b, c) =
   case+ c of
@@ -195,7 +195,7 @@ implement emit_color(b, c) =
    Emit: value
    ============================================================ *)
 
-#pub fn emit_value(b: !$B.builder0, v: css_value): void
+#pub fn emit_value(b: !$B.builder_v >> $B.builder_v, v: css_value): void
 
 implement emit_value(b, v) =
   case+ v of
@@ -206,8 +206,8 @@ implement emit_value(b, v) =
   | Number_bare(n) => put_int(b, n)
   | Color(c) => emit_color(b, c)
   | Str(s) => let
-      val () = $B.put_byte_safe(b, 34) val () = bput(b, s)
-    in $B.put_byte_safe(b, 34) end
+      val () = $B.put_char(b, 34) val () = bput(b, s)
+    in $B.put_char(b, 34) end
   | Var_ref(name, len) => let
       val () = bput(b, "var(--") val () = put_text(b, name, len)
     in bput(b, ")") end
@@ -216,28 +216,28 @@ implement emit_value(b, v) =
    Emit: selector
    ============================================================ *)
 
-#pub fun emit_selector(b: !$B.builder0, s: css_selector): void
+#pub fun emit_selector(b: !$B.builder_v >> $B.builder_v, s: css_selector): void
 
 implement emit_selector(b, s) =
   case+ s of
-  | Class(name, len) => let val () = $B.put_byte_safe(b, 46) in put_text(b, name, len) end
-  | Id(name, len) => let val () = $B.put_byte_safe(b, 35) in put_text(b, name, len) end
+  | Class(name, len) => let val () = $B.put_char(b, 46) in put_text(b, name, len) end
+  | Id(name, len) => let val () = $B.put_char(b, 35) in put_text(b, name, len) end
   | Tag(name, len) => put_text(b, name, len)
   | Pseudo(base, pseudo, len) => let
-      val () = emit_selector(b, base) val () = $B.put_byte_safe(b, 58)
+      val () = emit_selector(b, base) val () = $B.put_char(b, 58)
     in put_text(b, pseudo, len) end
   | Child(parent, child) => let
       val () = emit_selector(b, parent) val () = bput(b, " > ")
     in emit_selector(b, child) end
   | Descendant(parent, child) => let
-      val () = emit_selector(b, parent) val () = $B.put_byte_safe(b, 32)
+      val () = emit_selector(b, parent) val () = $B.put_char(b, 32)
     in emit_selector(b, child) end
 
 (* ============================================================
    Emit: declaration
    ============================================================ *)
 
-#pub fn emit_declaration(b: !$B.builder0, d: css_declaration): void
+#pub fn emit_declaration(b: !$B.builder_v >> $B.builder_v, d: css_declaration): void
 
 implement emit_declaration(b, d) =
   case+ d of
@@ -250,9 +250,9 @@ implement emit_declaration(b, d) =
    Emit: rule
    ============================================================ *)
 
-#pub fun emit_rule_list(b: !$B.builder0, lst: css_rule_list): void
+#pub fun emit_rule_list(b: !$B.builder_v >> $B.builder_v, lst: css_rule_list): void
 
-#pub fn emit_rule(b: !$B.builder0, r: css_rule): void
+#pub fn emit_rule(b: !$B.builder_v >> $B.builder_v, r: css_rule): void
 
 implement emit_rule(b, r) =
   case+ r of

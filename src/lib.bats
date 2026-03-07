@@ -1,6 +1,6 @@
 (* css -- typed CSS generation library *)
 (* No $UNSAFE. Structured datatypes + emitter. *)
-(* Uses text from array for safe string handling. *)
+(* Size-indexed selectors and rules: emit has zero runtime bounds checks. *)
 
 #include "share/atspre_staload.hats"
 
@@ -54,31 +54,31 @@
   | {n:pos | n < 256} Var_ref of ($A.text(n), int(n))
 
 (* ============================================================
-   Selectors
+   Selectors -- size-indexed by max emitted bytes
    ============================================================ *)
 
-#pub datatype css_selector =
-  | {n:pos | n < 256} Class of ($A.text(n), int(n))
-  | {n:pos | n < 256} Id of ($A.text(n), int(n))
-  | {n:pos | n < 256} Tag of ($A.text(n), int(n))
-  | {n:pos | n < 256} Pseudo of (css_selector, $A.text(n), int(n))
-  | Child of (css_selector, css_selector)
-  | Descendant of (css_selector, css_selector)
+#pub datatype css_selector(int) =
+  | {n:pos | n < 256} Class(n + 1) of ($A.text(n), int(n))
+  | {n:pos | n < 256} Id(n + 1) of ($A.text(n), int(n))
+  | {n:pos | n < 256} Tag(n) of ($A.text(n), int(n))
+  | {n:pos | n < 256}{ssz:nat} Pseudo(ssz + n + 1) of (css_selector(ssz), $A.text(n), int(n))
+  | {ssz1:nat}{ssz2:nat} Child(ssz1 + ssz2 + 3) of (css_selector(ssz1), css_selector(ssz2))
+  | {ssz1:nat}{ssz2:nat} Descendant(ssz1 + ssz2 + 1) of (css_selector(ssz1), css_selector(ssz2))
 
 (* ============================================================
-   Declarations and Rules
+   Declarations and Rules -- size-indexed
    ============================================================ *)
 
 #pub datatype css_declaration =
   | {n:pos | n < 256} Decl of ($A.text(n), int(n), css_value)
 
-#pub datatype css_rule_list =
-  | RuleNil of ()
-  | RuleCons of (css_rule, css_rule_list)
+#pub datatype css_rule_list(int) =
+  | RuleNil(0) of ()
+  | {rsz:nat}{rlsz:nat} RuleCons(rsz + rlsz) of (css_rule(rsz), css_rule_list(rlsz))
 
-and css_rule =
-  | Rule of (css_selector, css_declaration)
-  | {nq:pos | nq < 256} MediaQuery of (string nq, css_rule_list)
+and css_rule(int) =
+  | {ssz:nat} Rule(ssz + 705) of (css_selector(ssz), css_declaration)
+  | {nq:pos | nq < 256}{rlsz:nat} MediaQuery(nq + rlsz + 12) of (string nq, css_rule_list(rlsz))
 
 (* ============================================================
    Emit helpers
@@ -157,37 +157,30 @@ implement emit_value(b, v) =
     in $B.bput(b, ")") end
 
 (* ============================================================
-   Emit: selector -- uses room parameter for recursion
-   Room must be >= 260 (max single-level selector)
+   Emit: selector -- compile-time bounds from size index
    ============================================================ *)
 
-#pub fun emit_selector {n:nat}{room:nat | n + room <= $B.BUILDER_CAP; room >= 260}
-  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + room] $B.builder(m),
-   s: css_selector, room: int room): void
+#pub fun emit_selector {ssz:nat}{n:nat | n + ssz <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + ssz] $B.builder(m),
+   s: css_selector(ssz)): void
 
-implement emit_selector(b, s, room) =
+implement emit_selector(b, s) =
   case+ s of
   | Class(name, len) => let val () = $B.put_char(b, 46) in put_text(b, name, len) end
   | Id(name, len) => let val () = $B.put_char(b, 35) in put_text(b, name, len) end
   | Tag(name, len) => put_text(b, name, len)
-  | Pseudo(base, pseudo, len) =>
-    if room >= 520 then let
-      val () = emit_selector(b, base, room - 260)
+  | Pseudo(base, pseudo, len) => let
+      val () = emit_selector(b, base)
       val () = $B.put_char(b, 58)
     in put_text(b, pseudo, len) end
-    else let val () = $B.put_char(b, 58) in put_text(b, pseudo, len) end
-  | Child(parent, child) =>
-    if room >= 526 then let
-      val () = emit_selector(b, parent, room / 2)
+  | Child(parent, child) => let
+      val () = emit_selector(b, parent)
       val () = $B.bput(b, " > ")
-    in emit_selector(b, child, room / 2 - 3) end
-    else ()
-  | Descendant(parent, child) =>
-    if room >= 522 then let
-      val () = emit_selector(b, parent, room / 2)
+    in emit_selector(b, child) end
+  | Descendant(parent, child) => let
+      val () = emit_selector(b, parent)
       val () = $B.put_char(b, 32)
-    in emit_selector(b, child, room / 2 - 1) end
-    else ()
+    in emit_selector(b, child) end
 
 (* ============================================================
    Emit: declaration -- max 700 bytes (prop < 256 + value < 400 + formatting)
@@ -204,37 +197,33 @@ implement emit_declaration(b, d) =
     in $B.bput(b, ";\n") end
 
 (* ============================================================
-   Emit: rule -- uses room parameter for recursion
+   Emit: rule -- compile-time bounds from size index
    ============================================================ *)
 
-#pub fun emit_rule_list {n:nat}{room:nat | n + room <= $B.BUILDER_CAP; room >= 2000}
-  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + room] $B.builder(m),
-   lst: css_rule_list, room: int room): void
+#pub fun emit_rule_list {rlsz:nat}{n:nat | n + rlsz <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + rlsz] $B.builder(m),
+   lst: css_rule_list(rlsz)): void
 
-#pub fn emit_rule {n:nat}{room:nat | n + room <= $B.BUILDER_CAP; room >= 2000}
-  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + room] $B.builder(m),
-   r: css_rule, room: int room): void
+#pub fn emit_rule {rsz:nat}{n:nat | n + rsz <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + rsz] $B.builder(m),
+   r: css_rule(rsz)): void
 
-implement emit_rule(b, r, room) =
+implement emit_rule(b, r) =
   case+ r of
   | Rule(sel, decl) => let
-      val () = emit_selector(b, sel, room / 2) val () = $B.bput(b, " {\n")
+      val () = emit_selector(b, sel) val () = $B.bput(b, " {\n")
       val () = emit_declaration(b, decl)
     in $B.bput(b, "}\n") end
-  | MediaQuery(query, rules) =>
-    if room >= 4270 then let
+  | MediaQuery(query, rules) => let
       val () = $B.bput(b, "@media ")
       val () = $B.bput(b, query)
       val () = $B.bput(b, " {\n")
-      val () = emit_rule_list(b, rules, room - 270)
+      val () = emit_rule_list(b, rules)
     in $B.bput(b, "}\n") end
-    else ()
 
-implement emit_rule_list(b, lst, room) =
+implement emit_rule_list(b, lst) =
   case+ lst of
   | RuleNil() => ()
-  | RuleCons(r, rest) =>
-    if room >= 4000 then let
-      val () = emit_rule(b, r, room / 2)
-    in emit_rule_list(b, rest, room / 2) end
-    else ()
+  | RuleCons(r, rest) => let
+      val () = emit_rule(b, r)
+    in emit_rule_list(b, rest) end

@@ -1,6 +1,6 @@
 (* css -- typed CSS generation library *)
 (* No $UNSAFE. Structured datatypes + emitter. *)
-(* Uses text from array for safe string handling. *)
+(* Size-indexed selectors and rules: emit has zero runtime bounds checks. *)
 
 #include "share/atspre_staload.hats"
 
@@ -32,7 +32,7 @@
 #pub datatype css_color =
   | RGB of (int, int, int)
   | RGBA of (int, int, int, int)
-  | {n:pos} Named of ($A.text(n), int(n))
+  | {n:pos | n < 256} Named of ($A.text(n), int(n))
 
 (* ============================================================
    Separator
@@ -46,177 +46,123 @@
    ============================================================ *)
 
 #pub datatype css_value =
-  | {n:pos} Keyword of ($A.text(n), int(n))
+  | {n:pos | n < 256} Keyword of ($A.text(n), int(n))
   | Number_scaled of (int, int, css_unit)
   | Number_bare of (int)
   | Color of (css_color)
-  | {ns:pos} Str of (string ns)
-  | {n:pos} Var_ref of ($A.text(n), int(n))
+  | {ns:pos | ns < 256} Str of (string ns)
+  | {n:pos | n < 256} Var_ref of ($A.text(n), int(n))
 
 (* ============================================================
-   Selectors
+   Selectors -- size-indexed by max emitted bytes
    ============================================================ *)
 
-#pub datatype css_selector =
-  | {n:pos} Class of ($A.text(n), int(n))
-  | {n:pos} Id of ($A.text(n), int(n))
-  | {n:pos} Tag of ($A.text(n), int(n))
-  | {n:pos} Pseudo of (css_selector, $A.text(n), int(n))
-  | Child of (css_selector, css_selector)
-  | Descendant of (css_selector, css_selector)
+#pub datatype css_selector(int) =
+  | {n:pos | n < 256} Class(n + 1) of ($A.text(n), int(n))
+  | {n:pos | n < 256} Id(n + 1) of ($A.text(n), int(n))
+  | {n:pos | n < 256} Tag(n) of ($A.text(n), int(n))
+  | {n:pos | n < 256}{ssz:nat} Pseudo(ssz + n + 1) of (css_selector(ssz), $A.text(n), int(n))
+  | {ssz1:nat}{ssz2:nat} Child(ssz1 + ssz2 + 3) of (css_selector(ssz1), css_selector(ssz2))
+  | {ssz1:nat}{ssz2:nat} Descendant(ssz1 + ssz2 + 1) of (css_selector(ssz1), css_selector(ssz2))
 
 (* ============================================================
-   Declarations and Rules
+   Declarations and Rules -- size-indexed
    ============================================================ *)
 
 #pub datatype css_declaration =
-  | {n:pos} Decl of ($A.text(n), int(n), css_value)
+  | {n:pos | n < 256} Decl of ($A.text(n), int(n), css_value)
 
-#pub datatype css_rule_list =
-  | RuleNil of ()
-  | RuleCons of (css_rule, css_rule_list)
+#pub datatype css_rule_list(int) =
+  | RuleNil(0) of ()
+  | {rsz:nat}{rlsz:nat} RuleCons(rsz + rlsz) of (css_rule(rsz), css_rule_list(rlsz))
 
-and css_rule =
-  | Rule of (css_selector, css_declaration)
-  | {nq:pos} MediaQuery of (string nq, css_rule_list)
+and css_rule(int) =
+  | {ssz:nat} Rule(ssz + 705) of (css_selector(ssz), css_declaration)
+  | {nq:pos | nq < 256}{rlsz:nat} MediaQuery(nq + rlsz + 12) of (string nq, css_rule_list(rlsz))
 
 (* ============================================================
    Emit helpers
    ============================================================ *)
 
-fn bput {sn:pos} (b: !$B.builder_v >> $B.builder_v, s: string sn): void = let
-  fun loop {sn:pos}{fuel:nat} .<fuel>.
-    (b: !$B.builder_v >> $B.builder_v, s: string sn, slen: int sn, i: int, fuel: int fuel): void =
-    if fuel <= 0 then ()
+fn put_text {n:pos | n < 256}{p:nat | p + n <= $B.BUILDER_CAP}
+  (b: !$B.builder(p) >> $B.builder(p + n), t: $A.text(n), len: int n): void = let
+  fun loop {i:nat | i <= n}{q:nat | q + n - i <= $B.BUILDER_CAP} .<n - i>.
+    (b: !$B.builder(q) >> $B.builder(q + n - i),
+     t: $A.text(n), len: int n, i: int i): void =
+    if i >= len then ()
     else let
-      val ii = $AR.checked_idx(i, slen)
-      val c = char2int0(string_get_at(s, ii))
-      val () = $B.put_char(b, c)
-    in loop(b, s, slen, i + 1, fuel - 1) end
-  val slen = g1u2i(string1_length(s))
-in loop(b, s, slen, 0, $AR.checked_nat(g0ofg1(slen) + 1)) end
-
-fn put_text {n:pos} (b: !$B.builder_v >> $B.builder_v, t: $A.text(n), len: int n): void = let
-  fun loop {n:pos}{fuel:nat} .<fuel>.
-    (b: !$B.builder_v >> $B.builder_v, t: $A.text(n), i: int, len: int n, fuel: int fuel): void =
-    if fuel <= 0 then ()
-    else let
-      val ii = $AR.checked_idx(i, len)
-      val c = $A.text_get(t, ii)
-      val () = $B.put_char(b, byte2int0(c))
-    in loop(b, t, i + 1, len, fuel - 1) end
-in loop(b, t, 0, len, $AR.checked_nat(len)) end
-
-fn put_int(b: !$B.builder_v >> $B.builder_v, v: int): void = let
-  val is_neg = v < 0
-  val abs_v = (if is_neg then 0 - v else v): int
-  fun count {k:nat} .<k>. (v: int, r: int(k)): int =
-    if r <= 0 then 1
-    else if v < 10 then 1
-    else 1 + count(v / 10, r - 1)
-  val nd = count(abs_v, $AR.checked_nat(abs_v + 1))
-  fun write {fuel:nat} .<fuel>.
-    (b: !$B.builder_v >> $B.builder_v, v: int, pos: int, fuel: int fuel): void =
-    if fuel <= 0 then ()
-    else if v < 10 then $B.put_char(b, v + 48)
-    else let
-      val () = write(b, v / 10, pos - 1, fuel - 1)
-    in $B.put_char(b, (v mod 10) + 48) end
-in
-  if is_neg then $B.put_char(b, 45);
-  write(b, abs_v, nd - 1, $AR.checked_nat(nd + 1))
-end
-
-fn put_scaled(b: !$B.builder_v >> $B.builder_v, value: int, dp: int): void =
-  if dp <= 0 then put_int(b, value)
-  else let
-    val is_neg = value < 0
-    val abs_v = (if is_neg then 0 - value else value): int
-    fun pow10 {k:nat} .<k>. (acc: int, k: int(k)): int =
-      if k <= 0 then acc
-      else pow10(acc * 10, k - 1)
-    val divisor = pow10(1, $AR.checked_nat(dp))
-    val int_part = abs_v / divisor
-    val frac_part = abs_v mod divisor
-    val () = (if is_neg then $B.put_char(b, 45) else ())
-    val () = put_int(b, int_part)
-    val () = $B.put_char(b, 46)
-    fun pad {fuel:nat} .<fuel>.
-      (b: !$B.builder_v >> $B.builder_v, frac: int, width: int, fuel: int fuel): void =
-      if fuel <= 0 then ()
-      else if width <= 1 then put_int(b, frac)
-      else let
-        val threshold = pow10(1, $AR.checked_nat(width - 1))
-      in
-        if frac < threshold then let
-          val () = $B.put_char(b, 48)
-        in pad(b, frac, width - 1, fuel - 1) end
-        else put_int(b, frac)
-      end
-  in pad(b, frac_part, dp, $AR.checked_nat(dp + 1)) end
+      val c = $A.text_get(t, i)
+      val () = $B.put_byte(b, byte2int0(c))
+    in loop(b, t, len, i + 1) end
+in loop(b, t, len, 0) end
 
 (* ============================================================
-   Emit: unit
+   Emit: unit -- max 5 bytes
    ============================================================ *)
 
-#pub fn emit_unit(b: !$B.builder_v >> $B.builder_v, u: css_unit): void
+#pub fn emit_unit {n:nat | n + 5 <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + 5] $B.builder(m), u: css_unit): void
 
 implement emit_unit(b, u) =
   case+ u of
-  | PX() => bput(b, "px") | PT() => bput(b, "pt") | PC() => bput(b, "pc")
-  | CM() => bput(b, "cm") | MM() => bput(b, "mm") | IN_unit() => bput(b, "in")
-  | EM() => bput(b, "em") | REM() => bput(b, "rem")
-  | VW() => bput(b, "vw") | VH() => bput(b, "vh")
-  | VMIN() => bput(b, "vmin") | VMAX() => bput(b, "vmax") | PERCENT() => bput(b, "%")
-  | DEG() => bput(b, "deg") | RAD() => bput(b, "rad") | TURN() => bput(b, "turn")
-  | S_unit() => bput(b, "s") | MS() => bput(b, "ms")
-  | DPI() => bput(b, "dpi") | DPCM() => bput(b, "dpcm")
+  | PX() => $B.bput(b, "px") | PT() => $B.bput(b, "pt") | PC() => $B.bput(b, "pc")
+  | CM() => $B.bput(b, "cm") | MM() => $B.bput(b, "mm") | IN_unit() => $B.bput(b, "in")
+  | EM() => $B.bput(b, "em") | REM() => $B.bput(b, "rem")
+  | VW() => $B.bput(b, "vw") | VH() => $B.bput(b, "vh")
+  | VMIN() => $B.bput(b, "vmin") | VMAX() => $B.bput(b, "vmax") | PERCENT() => $B.bput(b, "%")
+  | DEG() => $B.bput(b, "deg") | RAD() => $B.bput(b, "rad") | TURN() => $B.bput(b, "turn")
+  | S_unit() => $B.bput(b, "s") | MS() => $B.bput(b, "ms")
+  | DPI() => $B.bput(b, "dpi") | DPCM() => $B.bput(b, "dpcm")
 
 (* ============================================================
-   Emit: color
+   Emit: color -- max 300 bytes
    ============================================================ *)
 
-#pub fn emit_color(b: !$B.builder_v >> $B.builder_v, c: css_color): void
+#pub fn emit_color {n:nat | n + 300 <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + 300] $B.builder(m), c: css_color): void
 
 implement emit_color(b, c) =
   case+ c of
   | RGB(r, g, bb) => let
-      val () = bput(b, "rgb(") val () = put_int(b, r) val () = bput(b, ", ")
-      val () = put_int(b, g) val () = bput(b, ", ") val () = put_int(b, bb)
-    in bput(b, ")") end
+      val () = $B.bput(b, "rgb(") val () = $B.put_int(b, r) val () = $B.bput(b, ", ")
+      val () = $B.put_int(b, g) val () = $B.bput(b, ", ") val () = $B.put_int(b, bb)
+    in $B.bput(b, ")") end
   | RGBA(r, g, bb, a) => let
-      val () = bput(b, "rgba(") val () = put_int(b, r) val () = bput(b, ", ")
-      val () = put_int(b, g) val () = bput(b, ", ") val () = put_int(b, bb)
-      val () = bput(b, ", ") val () = put_int(b, a)
-    in bput(b, ")") end
+      val () = $B.bput(b, "rgba(") val () = $B.put_int(b, r) val () = $B.bput(b, ", ")
+      val () = $B.put_int(b, g) val () = $B.bput(b, ", ") val () = $B.put_int(b, bb)
+      val () = $B.bput(b, ", ") val () = $B.put_int(b, a)
+    in $B.bput(b, ")") end
   | Named(name, len) => put_text(b, name, len)
 
 (* ============================================================
-   Emit: value
+   Emit: value -- max 400 bytes
    ============================================================ *)
 
-#pub fn emit_value(b: !$B.builder_v >> $B.builder_v, v: css_value): void
+#pub fn emit_value {n:nat | n + 400 <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + 400] $B.builder(m), v: css_value): void
 
 implement emit_value(b, v) =
   case+ v of
   | Keyword(kw, len) => put_text(b, kw, len)
-  | Number_scaled(n, dp, u) => let
-      val () = put_scaled(b, n, dp)
-    in (if n = 0 then () else emit_unit(b, u)) end
-  | Number_bare(n) => put_int(b, n)
+  | Number_scaled(num, dp, u) => let
+      val () = $B.put_int(b, num)
+    in (if num = 0 then () else emit_unit(b, u)) end
+  | Number_bare(num) => $B.put_int(b, num)
   | Color(c) => emit_color(b, c)
   | Str(s) => let
-      val () = $B.put_char(b, 34) val () = bput(b, s)
+      val () = $B.put_char(b, 34) val () = $B.bput(b, s)
     in $B.put_char(b, 34) end
   | Var_ref(name, len) => let
-      val () = bput(b, "var(--") val () = put_text(b, name, len)
-    in bput(b, ")") end
+      val () = $B.bput(b, "var(--") val () = put_text(b, name, len)
+    in $B.bput(b, ")") end
 
 (* ============================================================
-   Emit: selector
+   Emit: selector -- compile-time bounds from size index
    ============================================================ *)
 
-#pub fun emit_selector(b: !$B.builder_v >> $B.builder_v, s: css_selector): void
+#pub fun emit_selector {ssz:nat}{n:nat | n + ssz <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + ssz] $B.builder(m),
+   s: css_selector(ssz)): void
 
 implement emit_selector(b, s) =
   case+ s of
@@ -224,48 +170,56 @@ implement emit_selector(b, s) =
   | Id(name, len) => let val () = $B.put_char(b, 35) in put_text(b, name, len) end
   | Tag(name, len) => put_text(b, name, len)
   | Pseudo(base, pseudo, len) => let
-      val () = emit_selector(b, base) val () = $B.put_char(b, 58)
+      val () = emit_selector(b, base)
+      val () = $B.put_char(b, 58)
     in put_text(b, pseudo, len) end
   | Child(parent, child) => let
-      val () = emit_selector(b, parent) val () = bput(b, " > ")
+      val () = emit_selector(b, parent)
+      val () = $B.bput(b, " > ")
     in emit_selector(b, child) end
   | Descendant(parent, child) => let
-      val () = emit_selector(b, parent) val () = $B.put_char(b, 32)
+      val () = emit_selector(b, parent)
+      val () = $B.put_char(b, 32)
     in emit_selector(b, child) end
 
 (* ============================================================
-   Emit: declaration
+   Emit: declaration -- max 700 bytes (prop < 256 + value < 400 + formatting)
    ============================================================ *)
 
-#pub fn emit_declaration(b: !$B.builder_v >> $B.builder_v, d: css_declaration): void
+#pub fn emit_declaration {n:nat | n + 700 <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + 700] $B.builder(m), d: css_declaration): void
 
 implement emit_declaration(b, d) =
   case+ d of
   | Decl(prop, len, val_) => let
-      val () = bput(b, "  ") val () = put_text(b, prop, len)
-      val () = bput(b, ": ") val () = emit_value(b, val_)
-    in bput(b, ";\n") end
+      val () = $B.bput(b, "  ") val () = put_text(b, prop, len)
+      val () = $B.bput(b, ": ") val () = emit_value(b, val_)
+    in $B.bput(b, ";\n") end
 
 (* ============================================================
-   Emit: rule
+   Emit: rule -- compile-time bounds from size index
    ============================================================ *)
 
-#pub fun emit_rule_list(b: !$B.builder_v >> $B.builder_v, lst: css_rule_list): void
+#pub fun emit_rule_list {rlsz:nat}{n:nat | n + rlsz <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + rlsz] $B.builder(m),
+   lst: css_rule_list(rlsz)): void
 
-#pub fn emit_rule(b: !$B.builder_v >> $B.builder_v, r: css_rule): void
+#pub fn emit_rule {rsz:nat}{n:nat | n + rsz <= $B.BUILDER_CAP}
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + rsz] $B.builder(m),
+   r: css_rule(rsz)): void
 
 implement emit_rule(b, r) =
   case+ r of
   | Rule(sel, decl) => let
-      val () = emit_selector(b, sel) val () = bput(b, " {\n")
+      val () = emit_selector(b, sel) val () = $B.bput(b, " {\n")
       val () = emit_declaration(b, decl)
-    in bput(b, "}\n") end
+    in $B.bput(b, "}\n") end
   | MediaQuery(query, rules) => let
-      val () = bput(b, "@media ")
-      val () = bput(b, query)
-      val () = bput(b, " {\n")
+      val () = $B.bput(b, "@media ")
+      val () = $B.bput(b, query)
+      val () = $B.bput(b, " {\n")
       val () = emit_rule_list(b, rules)
-    in bput(b, "}\n") end
+    in $B.bput(b, "}\n") end
 
 implement emit_rule_list(b, lst) =
   case+ lst of

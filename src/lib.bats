@@ -227,3 +227,18 @@ implement emit_rule_list(b, lst) =
   | RuleCons(r, rest) => let
       val () = emit_rule(b, r)
     in emit_rule_list(b, rest) end
+
+(* ============================================================
+   class_text -- generate a class name from an integer index
+   Maps 0 -> caa, 1 -> cab, ..., 25 -> caz, 26 -> cba, ..., 675 -> czz
+   ============================================================ *)
+
+#pub fn class_text(idx: int): @($A.text(3), int(3))
+
+implement class_text(idx) = let
+  val i1 = $AR.mod_int_int($AR.div_int_int(idx, 26), 26)
+  val i2 = $AR.mod_int_int(idx, 26)
+  val c1 = $AR.add_int_int(97, i1)
+  val c2 = $AR.add_int_int(97, i2)
+  var chars = @[char][3](int2char0(99), int2char0(c1), int2char0(c2))
+in @($S.text_of_chars(chars, 3), 3) end

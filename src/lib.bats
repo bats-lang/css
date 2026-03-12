@@ -50,7 +50,7 @@
   | Number_scaled of (int, int, css_unit)
   | Number_bare of (int)
   | Color of (css_color)
-  | {ns:pos | ns < 256} Str of (string ns)
+  | {ns:pos | ns < 256} Str of ($A.text(ns), int(ns))
   | {n:pos | n < 256} Var_ref of ($A.text(n), int(n))
 
 (* ============================================================
@@ -78,7 +78,7 @@
 
 and css_rule(int) =
   | {ssz:nat} Rule(ssz + 705) of (css_selector(ssz), css_declaration)
-  | {nq:pos | nq < 256}{rlsz:nat} MediaQuery(nq + rlsz + 12) of (string nq, css_rule_list(rlsz))
+  | {nq:pos | nq < 256}{rlsz:nat} MediaQuery(nq + rlsz + 12) of ($A.text(nq), int(nq), css_rule_list(rlsz))
 
 (* ============================================================
    Emit helpers
@@ -149,8 +149,8 @@ implement emit_value(b, v) =
     in (if num = 0 then () else emit_unit(b, u)) end
   | Number_bare(num) => $B.put_int(b, num)
   | Color(c) => emit_color(b, c)
-  | Str(s) => let
-      val () = $B.put_char(b, 34) val () = $B.bput(b, s)
+  | Str(t, tlen) => let
+      val () = $B.put_char(b, 34) val () = put_text(b, t, tlen)
     in $B.put_char(b, 34) end
   | Var_ref(name, len) => let
       val () = $B.bput(b, "var(--") val () = put_text(b, name, len)
@@ -214,9 +214,9 @@ implement emit_rule(b, r) =
       val () = emit_selector(b, sel) val () = $B.bput(b, " {\n")
       val () = emit_declaration(b, decl)
     in $B.bput(b, "}\n") end
-  | MediaQuery(query, rules) => let
+  | MediaQuery(query, qlen, rules) => let
       val () = $B.bput(b, "@media ")
-      val () = $B.bput(b, query)
+      val () = put_text(b, query, qlen)
       val () = $B.bput(b, " {\n")
       val () = emit_rule_list(b, rules)
     in $B.bput(b, "}\n") end
@@ -235,10 +235,23 @@ implement emit_rule_list(b, lst) =
 
 #pub fn class_text(idx: int): @($A.text(3), int(3))
 
+fn _safe_letter
+  {n:pos}{i:nat | i < n}
+  (b: $A.text_builder(n, i), i: int i, v: int)
+  : $A.text_builder(n, i + 1) = let
+  val cv = $AR.checked_byte($AR.add_int_int(97, v))
+in
+  if cv >= 97 then
+    if cv <= 122 then $A.text_putc(b, i, cv)
+    else $A.text_putc(b, i, 97)
+  else $A.text_putc(b, i, 97)
+end
+
 implement class_text(idx) = let
   val i1 = $AR.mod_int_int($AR.div_int_int(idx, 26), 26)
   val i2 = $AR.mod_int_int(idx, 26)
-  val c1 = $AR.add_int_int(97, i1)
-  val c2 = $AR.add_int_int(97, i2)
-  var chars = @[char][3](int2char0(99), int2char0(c1), int2char0(c2))
-in @($S.text_of_chars(chars, 3), 3) end
+  val b = $A.text_build(3)
+  val b = $A.text_putc(b, 0, 99)
+  val b = _safe_letter(b, 1, i1)
+  val b = _safe_letter(b, 2, i2)
+in @($A.text_done(b), 3) end

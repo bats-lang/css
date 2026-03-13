@@ -235,10 +235,21 @@ implement emit_rule_list(b, lst) =
 
 #pub fn class_text(idx: int): @($A.text(3), int(3))
 
+fn _az_char(i: int): char =
+  if i = 0 then 'a' else if i = 1 then 'b' else if i = 2 then 'c'
+  else if i = 3 then 'd' else if i = 4 then 'e' else if i = 5 then 'f'
+  else if i = 6 then 'g' else if i = 7 then 'h' else if i = 8 then 'i'
+  else if i = 9 then 'j' else if i = 10 then 'k' else if i = 11 then 'l'
+  else if i = 12 then 'm' else if i = 13 then 'n' else if i = 14 then 'o'
+  else if i = 15 then 'p' else if i = 16 then 'q' else if i = 17 then 'r'
+  else if i = 18 then 's' else if i = 19 then 't' else if i = 20 then 'u'
+  else if i = 21 then 'v' else if i = 22 then 'w' else if i = 23 then 'x'
+  else if i = 24 then 'y' else 'z'
+
 implement class_text(idx) = let
   val i1 = $AR.mod_int_int($AR.div_int_int(idx, 26), 26)
   val i2 = $AR.mod_int_int(idx, 26)
-  val c1 = int2char0($AR.add_int_int(97, i1))
-  val c2 = int2char0($AR.add_int_int(97, i2))
+  val c1 = _az_char(i1)
+  val c2 = _az_char(i2)
   var buf = @[char][3]('c', c1, c2)
 in @($S.text_of_chars(buf, 3), 3) end

@@ -235,23 +235,10 @@ implement emit_rule_list(b, lst) =
 
 #pub fn class_text(idx: int): @($A.text(3), int(3))
 
-fn _safe_letter
-  {n:pos}{i:nat | i < n}
-  (b: $A.text_builder(n, i), i: int i, v: int)
-  : $A.text_builder(n, i + 1) = let
-  val cv = $AR.checked_byte($AR.add_int_int(97, v))
-in
-  if cv >= 97 then
-    if cv <= 122 then $A.text_putc(b, i, cv)
-    else $A.text_putc(b, i, 97)
-  else $A.text_putc(b, i, 97)
-end
-
 implement class_text(idx) = let
   val i1 = $AR.mod_int_int($AR.div_int_int(idx, 26), 26)
   val i2 = $AR.mod_int_int(idx, 26)
-  val b = $A.text_build(3)
-  val b = $A.text_putc(b, 0, 99)
-  val b = _safe_letter(b, 1, i1)
-  val b = _safe_letter(b, 2, i2)
-in @($A.text_done(b), 3) end
+  val c1 = int2char0($AR.add_int_int(97, i1))
+  val c2 = int2char0($AR.add_int_int(97, i2))
+  var buf = @[char][3]('c', c1, c2)
+in @($S.text_of_chars(buf, 3), 3) end

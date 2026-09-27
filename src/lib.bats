@@ -74,7 +74,7 @@
 
 #pub datatype css_rule_list(int) =
   | RuleNil(0) of ()
-  | {rsz:nat}{rlsz:nat} RuleCons(rsz + rlsz) of (css_rule(rsz), css_rule_list(rlsz))
+  | {rsz:pos}{rlsz:nat} RuleCons(rsz + rlsz) of (css_rule(rsz), css_rule_list(rlsz))
 
 and css_rule(int) =
   | {ssz:nat} Rule(ssz + 705) of (css_selector(ssz), css_declaration)
@@ -164,23 +164,28 @@ implement emit_value(b, v) =
   (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + ssz] $B.builder(m),
    s: css_selector(ssz)): void
 
-implement emit_selector(b, s) =
+implement emit_selector(b, s) = let
+  (* A selector's parts are smaller than it *)
+  fun emit {ssz:nat}{n:nat | n + ssz <= $B.BUILDER_CAP} .<ssz>.
+    (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + ssz] $B.builder(m),
+     s: css_selector(ssz)): void =
   case+ s of
   | Class(name, len) => let val () = $B.put_char(b, 46) in put_text(b, name, len) end
   | Id(name, len) => let val () = $B.put_char(b, 35) in put_text(b, name, len) end
   | Tag(name, len) => put_text(b, name, len)
   | Pseudo(base, pseudo, len) => let
-      val () = emit_selector(b, base)
+      val () = emit(b, base)
       val () = $B.put_char(b, 58)
     in put_text(b, pseudo, len) end
   | Child(parent, child) => let
-      val () = emit_selector(b, parent)
+      val () = emit(b, parent)
       val () = $B.bput(b, " > ")
-    in emit_selector(b, child) end
+    in emit(b, child) end
   | Descendant(parent, child) => let
-      val () = emit_selector(b, parent)
+      val () = emit(b, parent)
       val () = $B.put_char(b, 32)
-    in emit_selector(b, child) end
+    in emit(b, child) end
+in emit(b, s) end
 
 (* ============================================================
    Emit: declaration -- max 700 bytes (prop < 256 + value < 400 + formatting)
@@ -208,7 +213,11 @@ implement emit_declaration(b, d) =
   (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + rsz] $B.builder(m),
    r: css_rule(rsz)): void
 
-implement emit_rule(b, r) =
+(* A rule's list is smaller than the rule, and a list's first rule is
+   no larger than the list, whose rules are never empty *)
+fun _emit_rule {rsz:nat}{n:nat | n + rsz <= $B.BUILDER_CAP} .<rsz, 0>.
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + rsz] $B.builder(m),
+   r: css_rule(rsz)): void =
   case+ r of
   | Rule(sel, decl) => let
       val () = emit_selector(b, sel) val () = $B.bput(b, " {\n")
@@ -218,15 +227,21 @@ implement emit_rule(b, r) =
       val () = $B.bput(b, "@media ")
       val () = put_text(b, query, qlen)
       val () = $B.bput(b, " {\n")
-      val () = emit_rule_list(b, rules)
+      val () = _emit_rule_list(b, rules)
     in $B.bput(b, "}\n") end
 
-implement emit_rule_list(b, lst) =
+and _emit_rule_list {rlsz:nat}{n:nat | n + rlsz <= $B.BUILDER_CAP} .<rlsz, 1>.
+  (b: !$B.builder(n) >> [m:nat | n <= m; m <= n + rlsz] $B.builder(m),
+   lst: css_rule_list(rlsz)): void =
   case+ lst of
   | RuleNil() => ()
   | RuleCons(r, rest) => let
-      val () = emit_rule(b, r)
-    in emit_rule_list(b, rest) end
+      val () = _emit_rule(b, r)
+    in _emit_rule_list(b, rest) end
+
+implement emit_rule(b, r) = _emit_rule(b, r)
+
+implement emit_rule_list(b, lst) = _emit_rule_list(b, lst)
 
 (* ============================================================
    class_text -- generate a class name from an integer index

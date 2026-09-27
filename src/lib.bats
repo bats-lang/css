@@ -92,7 +92,7 @@ fn put_text {n:pos | n < 256}{p:nat | p + n <= $B.BUILDER_CAP}
     if i >= len then ()
     else let
       val c = $A.text_get(t, i)
-      val () = $B.put_byte(b, byte2int0(c))
+      val () = $B.put_byte(b, $AR.low_byte(byte2int0(c)))
     in loop(b, t, len, i + 1) end
 in loop(b, t, len, 0) end
 

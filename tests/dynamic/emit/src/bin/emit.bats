@@ -73,6 +73,7 @@ implement main0 () = let
   val rules = $C.RuleCons(r1, $C.RuleCons(r2, $C.RuleCons(r3, $C.RuleCons(r4, $C.RuleCons(r5, $C.RuleNil())))))
   val b = $B.create()
   val () = $C.emit_rule_list(b, rules)
+  val () = $C.css_rule_list_free(rules)
   val @(arr, n) = $B.to_arr(b)
   val () = show(arr, 0, n)
 in $A.free<byte>(arr) end

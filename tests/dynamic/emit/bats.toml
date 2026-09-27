@@ -1,0 +1,9 @@
+[package]
+name = "emit"
+kind = "bin"
+
+[dependencies]
+"array" = ""
+"builder" = ""
+"css" = ""
+"str" = ""

@@ -1,0 +1,17 @@
+.card {
+  color: rgb(1, 2, 3);
+}
+div > #x:hover {
+  margin: 15px;
+}
+b {
+  padding: 0;
+}
+p {
+  content: "hi";
+}
+@media screen {
+ul li {
+  display: none;
+}
+}

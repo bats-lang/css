@@ -4,19 +4,27 @@ CSS value types and rendering for the [Bats](https://github.com/bats-lang) progr
 
 ## Features
 
-- CSS units: `px`, `em`, `rem`, `percent`, `vh`, `vw`, `auto`
-- CSS colors: `rgb`, `rgba`, `hex`, named colors
-- CSS values: `font_size`, `margin`, `padding`, `border`, `display`, `position`, etc.
-- CSS selectors: element, class, id, pseudo-class
-- Renders CSS values to builders for DOM style application
+- CSS units (`PX`, `EM`, `REM`, `PERCENT`, `VW`, `DEG`, `MS`, ...)
+- Colors (`RGB`, `RGBA`, `Named`), values, declarations
+- Selectors (`Class`, `Id`, `Tag`, `Pseudo`, `Child`, `Descendant`) and
+  rules, size-indexed so emitting into a builder needs no runtime check
+- `class_text`: generated class names (`caa` .. `czz`), allocation-free
 
 ## Usage
 
+There is no GC: colors, values, selectors, declarations and rules are
+linear. The emitters borrow them; free each with its `*_free`.
+
 ```bats
+#use array as A
+#use builder as B
 #use css as C
 
-val red = $C.Rgb(255, 0, 0)
-val margin = $C.Px(16)
+val r = $C.Rule($C.Class($A.text_lit("card"), 4),
+  $C.Decl($A.text_lit("color"), 5, $C.Color($C.RGB(255, 0, 0))))
+val b = $B.create()
+val () = $C.emit_rule(b, r)
+val () = $C.css_rule_free(r)
 ```
 
 ## API

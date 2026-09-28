@@ -9,6 +9,8 @@
 #use builder as B
 #use str as S
 
+staload "./contrast.bats"
+
 (* ============================================================
    Units -- exhaustive enumeration
    ============================================================ *)

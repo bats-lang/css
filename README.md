@@ -27,6 +27,25 @@ val () = $C.emit_rule(b, r)
 val () = $C.css_rule_free(r)
 ```
 
+## Proven colours
+
+A theme's colours can be proven at compile time; a colour is a static
+`int` 0xRRGGBB.
+
+- `src/contrast.bats`: WCAG 2 relative luminance (`LUM`) and contrast
+  (`CONTRAST(a, b, k)`: at least k/10:1), so text that is hard to read
+  does not type-check.
+- `src/harmony.bats`: rules for a harmonious theme, over the channels
+  (`RGB`): hue arcs (`HUE`), chroma, HSV saturation (`CALM`,
+  `SATNEAR`), the brightest channel (`PEAK`) and relative lightness
+  (`LIGHTER`); hue families (`FAMILIES`, `IN3`: at most three arcs, each
+  at most 30 degrees wide), neutrals (`NEUTRAL`), and text/ground pairs
+  that do not vibrate (`NOVIB`). The module's header gives the source of
+  each rule.
+
+`tests/static` holds a theme that is accepted and one rejected fixture
+per rule.
+
 ## API
 
 See [docs/lib.md](docs/lib.md) for the full API reference.

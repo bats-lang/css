@@ -1,0 +1,8 @@
+[package]
+name = "wide-family"
+kind = "bin"
+unsafe = false
+
+[dependencies]
+"css" = ""
+"builder" = ""

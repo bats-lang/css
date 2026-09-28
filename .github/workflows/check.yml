@@ -51,3 +51,15 @@ jobs:
           sudo apt-get install -y valgrind
           export PATH=~/bats-bin:$PATH
           tests/dynamic/run.sh ~/repository
+
+      - name: Static tests
+        run: |
+          export PATH=~/bats-bin:$PATH
+          tests/static/run.sh ~/repository
+
+      # The luminance table is generated: it must be what the script
+      # writes, so no entry can be edited by hand
+      - name: Contrast table is generated
+        run: |
+          python3 scripts/gen-contrast.py
+          git diff --exit-code src/contrast.bats

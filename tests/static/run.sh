@@ -11,6 +11,9 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+fail=0
+# The generated luminance table is what its script writes (no bats needed)
+"$ROOT/tests/static/contrast-table.sh" || fail=1
 cp -R "$1" "$TMP/repo"
 (cd "$ROOT" && bats upload --repository "$TMP/repo" >/dev/null)
 # Keep only the archive just uploaded, so lock cannot pick a published
@@ -22,7 +25,6 @@ for a in "$TMP/repo/$PKG"/*.bats; do
   [ "$a" = "$NEW" ] || rm -f "$a" "$a.sha256"
 done
 
-fail=0
 check() { # dir -> runs lock + check, log in $TMP/<name>.log
   w="$TMP/w-$(basename "$1")"
   rm -rf "$w"; cp -R "$1" "$w"

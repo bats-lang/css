@@ -3340,34 +3340,49 @@ fn _refused_lit {l:agz}{n:nat}{cs:$A.cells}{len:nat | len <= n}{i:nat | i <= len
   (src: !$A.cborrow(l, n, cs), len: int len, i: int i, lit: string(m)): bool =
   if i + _slen(lit) <= len then _span_is(src, i, _slen(lit), lit) else false
 
-(* Whether a refused substring starts at i *)
-fn _refused_at {l:agz}{n:nat}{cs:$A.cells}{len:nat | len <= n}{i:nat | i < len}
-  (src: !$A.cborrow(l, n, cs), len: int len, i: int i): bool = let
-  val @(p0 | c) = _byte(src, i)
-in
-  if c = 92 then true
-  else if c = 60 then true
-  else if c = 47 then _refused_lit(src, len, i, "/*")
-  else if c = 33 then _refused_lit(src, len, i, "!important")
-  else if c = 64 then
-    (if _refused_lit(src, len, i, "@import") then true else _refused_lit(src, len, i, "@font-face"))
-  else if _refused_lit(src, len, i, "url(") then true
-  else if _refused_lit(src, len, i, "image-set(") then true
-  else if _refused_lit(src, len, i, "image(") then true
-  else if _refused_lit(src, len, i, "src(") then true
-  else if _refused_lit(src, len, i, "cross-fade(") then true
-  else if _refused_lit(src, len, i, "element(") then true
-  else if _refused_lit(src, len, i, "paint(") then true
-  else if _refused_lit(src, len, i, "env(") then true
-  else if _refused_lit(src, len, i, "var(") then true
-  else if _refused_lit(src, len, i, "attr(") then true
-  else _refused_lit(src, len, i, "expression(")
-end
+(* The table of the refused entries (keyword: refused table, bats-lang/css#88): the one
+   list. book_refused reads it, and book_refused_count and book_refused_entry export it,
+   so a consumer generates its check from the entries the predicate uses. An entry is
+   lower case (the match is without regard to case) and at most 11 bytes. The count 17
+   is in the type of book_refused_entry, in _refused_from_entry and in the getter's
+   result: a row added here changes all three. *)
+#pub fn book_refused_count (): int 17
+
+implement book_refused_count () = 17
+
+#pub fn book_refused_entry {i:nat | i < 17} (i: int i): [m:int | 1 <= m; m <= 11] string(m)
+
+implement book_refused_entry {i} (i) =
+  case+ i of
+  | 0 => "\\"
+  | 1 => "<"
+  | 2 => "/*"
+  | 3 => "!important"
+  | 4 => "@import"
+  | 5 => "@font-face"
+  | 6 => "url("
+  | 7 => "image-set("
+  | 8 => "image("
+  | 9 => "src("
+  | 10 => "cross-fade("
+  | 11 => "element("
+  | 12 => "paint("
+  | 13 => "env("
+  | 14 => "var("
+  | 15 => "attr("
+  | _ => "expression("
+
+(* Whether entry k of the table or a later one starts at i *)
+fun _refused_from_entry {l:agz}{n:nat}{cs:$A.cells}{len:nat | len <= n}{i:nat | i <= len}{k:nat | k <= 17} .<17 - k>.
+  (src: !$A.cborrow(l, n, cs), len: int len, i: int i, k: int k): bool =
+  if k >= 17 then false
+  else if _refused_lit(src, len, i, book_refused_entry(k)) then true
+  else _refused_from_entry(src, len, i, k + 1)
 
 fun _refused_from {l:agz}{n:nat}{cs:$A.cells}{len:nat | len <= n}{i:nat | i <= len} .<len - i>.
   (src: !$A.cborrow(l, n, cs), len: int len, i: int i): bool =
   if i >= len then false
-  else if _refused_at(src, len, i) then true
+  else if _refused_from_entry(src, len, i, 0) then true
   else _refused_from(src, len, i + 1)
 
 (* Whether the len bytes hold something that a book's sheet or style never may:

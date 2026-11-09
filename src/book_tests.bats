@@ -121,10 +121,11 @@ in
   | ~TSink(r) => r
 end
 
-(* Whether a sheet's bytes hold a refused substring (book_refused) *)
-fn _refused {css_len:nat | css_len < 16384} (css: string css_len): bool = let
+(* Whether the bytes of x then y hold a refused substring (book_refused) *)
+fn _refused_cat {a,b:nat | a + b < 16384} (x: string a, y: string b): bool = let
   var sheet : $B.builder(0) = $B.create()
-  val () = $B.bput(sheet, css)
+  val () = $B.bput(sheet, x)
+  val () = $B.bput(sheet, y)
   val @(sheet_arr, sheet_len) = $B.to_arr(sheet)
   val @(sheet_len_pf | sheet_barr) = $A.barr_of_arr(sheet_arr)
   val @(sheet_frozen, sheet_view) = $A.barr_freeze(sheet_barr)
@@ -132,6 +133,9 @@ fn _refused {css_len:nat | css_len < 16384} (css: string css_len): bool = let
   val () = $A.cborrow_drop(sheet_frozen, sheet_view)
   val () = $A.barr_free($A.barr_thaw(sheet_frozen))
 in answer end
+
+(* Whether a sheet's bytes hold a refused substring (book_refused) *)
+fn _refused {css_len:nat | css_len < 16384} (css: string css_len): bool = _refused_cat(css, "")
 
 (* The golden output of a walk: the rope is the literal, and the literal is not refused,
    so what the walk emits passes bridge's check *)
@@ -541,6 +545,22 @@ fn test_refused_19 (): bool = _refused("p{x:@IMPORT \"a\"}")
 fn test_refused_clean (): bool = not(_refused("p{margin:0;color:#333}"))
 
 fn test_refused_near_miss (): bool = not(_refused("p{margin:0;font-size:1em;background:red}"))
+
+(* The table (keyword: refused table, bats-lang/css#88): book_refused is defined over it *)
+fn test_refused_table_count (): bool = book_refused_count() = 17
+
+(* Entry i and every later one is refused alone and inside a text *)
+fun _entries_refused {i:nat | i <= 17} .<17 - i>. (i: int i): bool =
+  if i >= 17 then true
+  else if _refused(book_refused_entry(i)) then
+    (if _refused_cat("p{x:", book_refused_entry(i)) then _entries_refused(i + 1) else false)
+  else false
+
+fn test_refused_table_every_entry (): bool = _entries_refused(0)
+
+(* An entry with its last byte left off is no entry, in a text of its own *)
+fn test_refused_table_clean (): bool =
+  not(_refused("p{margin:0;ur(x);image-se(x);@impor;!importan;/ *;fon-face;var;vr(x)}"))
 
 (* ---- the contrast table read at run time ---- *)
 

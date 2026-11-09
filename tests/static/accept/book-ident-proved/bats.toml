@@ -1,0 +1,9 @@
+[package]
+name = "book-ident-proved"
+kind = "bin"
+unsafe = false
+
+[dependencies]
+"css" = ""
+"array" = ""
+"builder" = ""

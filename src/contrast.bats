@@ -287,6 +287,813 @@
   | {a,b,k:int}{alo,ahi,blo,bhi:int | 10 * (blo + 50000000) >= k * (ahi + 50000000)}
     CONTRAST_lighter_second(a, b, k) of (LUM(a, alo, ahi), LUM(b, blo, bhi))
 
+(* The table read at run time: the bounds of a channel c, with the proof
+   that LIN has them *)
+#pub fn lin_of {c:nat | c < 256} (c: int c): [lo,hi:int] (LIN(c, lo, hi) | int lo, int hi)
+
+implement lin_of {c} (c) =
+  if c < 128 then
+    if c < 64 then
+      if c < 32 then
+        if c < 16 then
+          if c < 8 then
+            if c < 4 then
+              if c < 2 then
+                if c < 1 then
+                  (LIN_00() | 0, 0)
+                else
+                  (LIN_01() | 30, 31)
+              else
+                if c < 3 then
+                  (LIN_02() | 60, 61)
+                else
+                  (LIN_03() | 91, 92)
+            else
+              if c < 6 then
+                if c < 5 then
+                  (LIN_04() | 121, 122)
+                else
+                  (LIN_05() | 151, 152)
+              else
+                if c < 7 then
+                  (LIN_06() | 182, 183)
+                else
+                  (LIN_07() | 212, 213)
+          else
+            if c < 12 then
+              if c < 10 then
+                if c < 9 then
+                  (LIN_08() | 242, 243)
+                else
+                  (LIN_09() | 273, 274)
+              else
+                if c < 11 then
+                  (LIN_0a() | 303, 304)
+                else
+                  (LIN_0b() | 334, 335)
+            else
+              if c < 14 then
+                if c < 13 then
+                  (LIN_0c() | 367, 368)
+                else
+                  (LIN_0d() | 402, 403)
+              else
+                if c < 15 then
+                  (LIN_0e() | 439, 440)
+                else
+                  (LIN_0f() | 477, 478)
+        else
+          if c < 24 then
+            if c < 20 then
+              if c < 18 then
+                if c < 17 then
+                  (LIN_10() | 518, 519)
+                else
+                  (LIN_11() | 560, 561)
+              else
+                if c < 19 then
+                  (LIN_12() | 604, 605)
+                else
+                  (LIN_13() | 651, 652)
+            else
+              if c < 22 then
+                if c < 21 then
+                  (LIN_14() | 699, 700)
+                else
+                  (LIN_15() | 749, 750)
+              else
+                if c < 23 then
+                  (LIN_16() | 802, 803)
+                else
+                  (LIN_17() | 856, 857)
+          else
+            if c < 28 then
+              if c < 26 then
+                if c < 25 then
+                  (LIN_18() | 913, 914)
+                else
+                  (LIN_19() | 972, 973)
+              else
+                if c < 27 then
+                  (LIN_1a() | 1032, 1033)
+                else
+                  (LIN_1b() | 1096, 1097)
+            else
+              if c < 30 then
+                if c < 29 then
+                  (LIN_1c() | 1161, 1162)
+                else
+                  (LIN_1d() | 1228, 1229)
+              else
+                if c < 31 then
+                  (LIN_1e() | 1298, 1299)
+                else
+                  (LIN_1f() | 1370, 1371)
+      else
+        if c < 48 then
+          if c < 40 then
+            if c < 36 then
+              if c < 34 then
+                if c < 33 then
+                  (LIN_20() | 1444, 1445)
+                else
+                  (LIN_21() | 1520, 1521)
+              else
+                if c < 35 then
+                  (LIN_22() | 1599, 1600)
+                else
+                  (LIN_23() | 1680, 1681)
+            else
+              if c < 38 then
+                if c < 37 then
+                  (LIN_24() | 1764, 1765)
+                else
+                  (LIN_25() | 1850, 1851)
+              else
+                if c < 39 then
+                  (LIN_26() | 1938, 1939)
+                else
+                  (LIN_27() | 2028, 2029)
+          else
+            if c < 44 then
+              if c < 42 then
+                if c < 41 then
+                  (LIN_28() | 2121, 2122)
+                else
+                  (LIN_29() | 2217, 2218)
+              else
+                if c < 43 then
+                  (LIN_2a() | 2315, 2316)
+                else
+                  (LIN_2b() | 2415, 2416)
+            else
+              if c < 46 then
+                if c < 45 then
+                  (LIN_2c() | 2518, 2519)
+                else
+                  (LIN_2d() | 2624, 2625)
+              else
+                if c < 47 then
+                  (LIN_2e() | 2732, 2733)
+                else
+                  (LIN_2f() | 2842, 2843)
+        else
+          if c < 56 then
+            if c < 52 then
+              if c < 50 then
+                if c < 49 then
+                  (LIN_30() | 2955, 2956)
+                else
+                  (LIN_31() | 3071, 3072)
+              else
+                if c < 51 then
+                  (LIN_32() | 3189, 3190)
+                else
+                  (LIN_33() | 3310, 3311)
+            else
+              if c < 54 then
+                if c < 53 then
+                  (LIN_34() | 3433, 3434)
+                else
+                  (LIN_35() | 3560, 3561)
+              else
+                if c < 55 then
+                  (LIN_36() | 3688, 3689)
+                else
+                  (LIN_37() | 3820, 3821)
+          else
+            if c < 60 then
+              if c < 58 then
+                if c < 57 then
+                  (LIN_38() | 3954, 3955)
+                else
+                  (LIN_39() | 4091, 4092)
+              else
+                if c < 59 then
+                  (LIN_3a() | 4231, 4232)
+                else
+                  (LIN_3b() | 4373, 4374)
+            else
+              if c < 62 then
+                if c < 61 then
+                  (LIN_3c() | 4518, 4519)
+                else
+                  (LIN_3d() | 4666, 4667)
+              else
+                if c < 63 then
+                  (LIN_3e() | 4817, 4818)
+                else
+                  (LIN_3f() | 4970, 4971)
+    else
+      if c < 96 then
+        if c < 80 then
+          if c < 72 then
+            if c < 68 then
+              if c < 66 then
+                if c < 65 then
+                  (LIN_40() | 5126, 5127)
+                else
+                  (LIN_41() | 5286, 5287)
+              else
+                if c < 67 then
+                  (LIN_42() | 5448, 5449)
+                else
+                  (LIN_43() | 5612, 5613)
+            else
+              if c < 70 then
+                if c < 69 then
+                  (LIN_44() | 5780, 5781)
+                else
+                  (LIN_45() | 5951, 5952)
+              else
+                if c < 71 then
+                  (LIN_46() | 6124, 6125)
+                else
+                  (LIN_47() | 6301, 6302)
+          else
+            if c < 76 then
+              if c < 74 then
+                if c < 73 then
+                  (LIN_48() | 6480, 6481)
+                else
+                  (LIN_49() | 6662, 6663)
+              else
+                if c < 75 then
+                  (LIN_4a() | 6847, 6848)
+                else
+                  (LIN_4b() | 7036, 7037)
+            else
+              if c < 78 then
+                if c < 77 then
+                  (LIN_4c() | 7227, 7228)
+                else
+                  (LIN_4d() | 7421, 7422)
+              else
+                if c < 79 then
+                  (LIN_4e() | 7618, 7619)
+                else
+                  (LIN_4f() | 7818, 7819)
+        else
+          if c < 88 then
+            if c < 84 then
+              if c < 82 then
+                if c < 81 then
+                  (LIN_50() | 8021, 8022)
+                else
+                  (LIN_51() | 8228, 8229)
+              else
+                if c < 83 then
+                  (LIN_52() | 8437, 8438)
+                else
+                  (LIN_53() | 8650, 8651)
+            else
+              if c < 86 then
+                if c < 85 then
+                  (LIN_54() | 8865, 8866)
+                else
+                  (LIN_55() | 9084, 9085)
+              else
+                if c < 87 then
+                  (LIN_56() | 9305, 9306)
+                else
+                  (LIN_57() | 9530, 9531)
+          else
+            if c < 92 then
+              if c < 90 then
+                if c < 89 then
+                  (LIN_58() | 9758, 9759)
+                else
+                  (LIN_59() | 9989, 9990)
+              else
+                if c < 91 then
+                  (LIN_5a() | 10224, 10225)
+                else
+                  (LIN_5b() | 10461, 10462)
+            else
+              if c < 94 then
+                if c < 93 then
+                  (LIN_5c() | 10702, 10703)
+                else
+                  (LIN_5d() | 10946, 10947)
+              else
+                if c < 95 then
+                  (LIN_5e() | 11193, 11194)
+                else
+                  (LIN_5f() | 11443, 11444)
+      else
+        if c < 112 then
+          if c < 104 then
+            if c < 100 then
+              if c < 98 then
+                if c < 97 then
+                  (LIN_60() | 11697, 11698)
+                else
+                  (LIN_61() | 11953, 11954)
+              else
+                if c < 99 then
+                  (LIN_62() | 12213, 12214)
+                else
+                  (LIN_63() | 12477, 12478)
+            else
+              if c < 102 then
+                if c < 101 then
+                  (LIN_64() | 12743, 12744)
+                else
+                  (LIN_65() | 13013, 13014)
+              else
+                if c < 103 then
+                  (LIN_66() | 13286, 13287)
+                else
+                  (LIN_67() | 13563, 13564)
+          else
+            if c < 108 then
+              if c < 106 then
+                if c < 105 then
+                  (LIN_68() | 13843, 13844)
+                else
+                  (LIN_69() | 14126, 14127)
+              else
+                if c < 107 then
+                  (LIN_6a() | 14412, 14413)
+                else
+                  (LIN_6b() | 14702, 14703)
+            else
+              if c < 110 then
+                if c < 109 then
+                  (LIN_6c() | 14995, 14996)
+                else
+                  (LIN_6d() | 15292, 15293)
+              else
+                if c < 111 then
+                  (LIN_6e() | 15592, 15593)
+                else
+                  (LIN_6f() | 15896, 15897)
+        else
+          if c < 120 then
+            if c < 116 then
+              if c < 114 then
+                if c < 113 then
+                  (LIN_70() | 16202, 16203)
+                else
+                  (LIN_71() | 16513, 16514)
+              else
+                if c < 115 then
+                  (LIN_72() | 16826, 16827)
+                else
+                  (LIN_73() | 17144, 17145)
+            else
+              if c < 118 then
+                if c < 117 then
+                  (LIN_74() | 17464, 17465)
+                else
+                  (LIN_75() | 17788, 17789)
+              else
+                if c < 119 then
+                  (LIN_76() | 18116, 18117)
+                else
+                  (LIN_77() | 18447, 18448)
+          else
+            if c < 124 then
+              if c < 122 then
+                if c < 121 then
+                  (LIN_78() | 18782, 18783)
+                else
+                  (LIN_79() | 19120, 19121)
+              else
+                if c < 123 then
+                  (LIN_7a() | 19461, 19462)
+                else
+                  (LIN_7b() | 19806, 19807)
+            else
+              if c < 126 then
+                if c < 125 then
+                  (LIN_7c() | 20155, 20156)
+                else
+                  (LIN_7d() | 20507, 20508)
+              else
+                if c < 127 then
+                  (LIN_7e() | 20863, 20864)
+                else
+                  (LIN_7f() | 21223, 21224)
+  else
+    if c < 192 then
+      if c < 160 then
+        if c < 144 then
+          if c < 136 then
+            if c < 132 then
+              if c < 130 then
+                if c < 129 then
+                  (LIN_80() | 21586, 21587)
+                else
+                  (LIN_81() | 21952, 21953)
+              else
+                if c < 131 then
+                  (LIN_82() | 22322, 22323)
+                else
+                  (LIN_83() | 22696, 22697)
+            else
+              if c < 134 then
+                if c < 133 then
+                  (LIN_84() | 23074, 23075)
+                else
+                  (LIN_85() | 23455, 23456)
+              else
+                if c < 135 then
+                  (LIN_86() | 23839, 23840)
+                else
+                  (LIN_87() | 24228, 24229)
+          else
+            if c < 140 then
+              if c < 138 then
+                if c < 137 then
+                  (LIN_88() | 24620, 24621)
+                else
+                  (LIN_89() | 25015, 25016)
+              else
+                if c < 139 then
+                  (LIN_8a() | 25415, 25416)
+                else
+                  (LIN_8b() | 25818, 25819)
+            else
+              if c < 142 then
+                if c < 141 then
+                  (LIN_8c() | 26225, 26226)
+                else
+                  (LIN_8d() | 26635, 26636)
+              else
+                if c < 143 then
+                  (LIN_8e() | 27049, 27050)
+                else
+                  (LIN_8f() | 27467, 27468)
+        else
+          if c < 152 then
+            if c < 148 then
+              if c < 146 then
+                if c < 145 then
+                  (LIN_90() | 27889, 27890)
+                else
+                  (LIN_91() | 28314, 28315)
+              else
+                if c < 147 then
+                  (LIN_92() | 28744, 28745)
+                else
+                  (LIN_93() | 29177, 29178)
+            else
+              if c < 150 then
+                if c < 149 then
+                  (LIN_94() | 29613, 29614)
+                else
+                  (LIN_95() | 30054, 30055)
+              else
+                if c < 151 then
+                  (LIN_96() | 30498, 30499)
+                else
+                  (LIN_97() | 30946, 30947)
+          else
+            if c < 156 then
+              if c < 154 then
+                if c < 153 then
+                  (LIN_98() | 31398, 31399)
+                else
+                  (LIN_99() | 31854, 31855)
+              else
+                if c < 155 then
+                  (LIN_9a() | 32314, 32315)
+                else
+                  (LIN_9b() | 32777, 32778)
+            else
+              if c < 158 then
+                if c < 157 then
+                  (LIN_9c() | 33245, 33246)
+                else
+                  (LIN_9d() | 33716, 33717)
+              else
+                if c < 159 then
+                  (LIN_9e() | 34191, 34192)
+                else
+                  (LIN_9f() | 34670, 34671)
+      else
+        if c < 176 then
+          if c < 168 then
+            if c < 164 then
+              if c < 162 then
+                if c < 161 then
+                  (LIN_a0() | 35153, 35154)
+                else
+                  (LIN_a1() | 35640, 35641)
+              else
+                if c < 163 then
+                  (LIN_a2() | 36130, 36131)
+                else
+                  (LIN_a3() | 36625, 36626)
+            else
+              if c < 166 then
+                if c < 165 then
+                  (LIN_a4() | 37123, 37124)
+                else
+                  (LIN_a5() | 37626, 37627)
+              else
+                if c < 167 then
+                  (LIN_a6() | 38132, 38133)
+                else
+                  (LIN_a7() | 38642, 38643)
+          else
+            if c < 172 then
+              if c < 170 then
+                if c < 169 then
+                  (LIN_a8() | 39157, 39158)
+                else
+                  (LIN_a9() | 39675, 39676)
+              else
+                if c < 171 then
+                  (LIN_aa() | 40197, 40198)
+                else
+                  (LIN_ab() | 40724, 40725)
+            else
+              if c < 174 then
+                if c < 173 then
+                  (LIN_ac() | 41254, 41255)
+                else
+                  (LIN_ad() | 41788, 41789)
+              else
+                if c < 175 then
+                  (LIN_ae() | 42326, 42327)
+                else
+                  (LIN_af() | 42869, 42870)
+        else
+          if c < 184 then
+            if c < 180 then
+              if c < 178 then
+                if c < 177 then
+                  (LIN_b0() | 43415, 43416)
+                else
+                  (LIN_b1() | 43965, 43966)
+              else
+                if c < 179 then
+                  (LIN_b2() | 44520, 44521)
+                else
+                  (LIN_b3() | 45078, 45079)
+            else
+              if c < 182 then
+                if c < 181 then
+                  (LIN_b4() | 45641, 45642)
+                else
+                  (LIN_b5() | 46207, 46208)
+              else
+                if c < 183 then
+                  (LIN_b6() | 46778, 46779)
+                else
+                  (LIN_b7() | 47353, 47354)
+          else
+            if c < 188 then
+              if c < 186 then
+                if c < 185 then
+                  (LIN_b8() | 47932, 47933)
+                else
+                  (LIN_b9() | 48514, 48515)
+              else
+                if c < 187 then
+                  (LIN_ba() | 49102, 49103)
+                else
+                  (LIN_bb() | 49693, 49694)
+            else
+              if c < 190 then
+                if c < 189 then
+                  (LIN_bc() | 50288, 50289)
+                else
+                  (LIN_bd() | 50888, 50889)
+              else
+                if c < 191 then
+                  (LIN_be() | 51491, 51492)
+                else
+                  (LIN_bf() | 52099, 52100)
+    else
+      if c < 224 then
+        if c < 208 then
+          if c < 200 then
+            if c < 196 then
+              if c < 194 then
+                if c < 193 then
+                  (LIN_c0() | 52711, 52712)
+                else
+                  (LIN_c1() | 53327, 53328)
+              else
+                if c < 195 then
+                  (LIN_c2() | 53947, 53948)
+                else
+                  (LIN_c3() | 54572, 54573)
+            else
+              if c < 198 then
+                if c < 197 then
+                  (LIN_c4() | 55201, 55202)
+                else
+                  (LIN_c5() | 55834, 55835)
+              else
+                if c < 199 then
+                  (LIN_c6() | 56471, 56472)
+                else
+                  (LIN_c7() | 57112, 57113)
+          else
+            if c < 204 then
+              if c < 202 then
+                if c < 201 then
+                  (LIN_c8() | 57758, 57759)
+                else
+                  (LIN_c9() | 58407, 58408)
+              else
+                if c < 203 then
+                  (LIN_ca() | 59061, 59062)
+                else
+                  (LIN_cb() | 59720, 59721)
+            else
+              if c < 206 then
+                if c < 205 then
+                  (LIN_cc() | 60382, 60383)
+                else
+                  (LIN_cd() | 61049, 61050)
+              else
+                if c < 207 then
+                  (LIN_ce() | 61720, 61721)
+                else
+                  (LIN_cf() | 62396, 62397)
+        else
+          if c < 216 then
+            if c < 212 then
+              if c < 210 then
+                if c < 209 then
+                  (LIN_d0() | 63075, 63076)
+                else
+                  (LIN_d1() | 63759, 63760)
+              else
+                if c < 211 then
+                  (LIN_d2() | 64447, 64448)
+                else
+                  (LIN_d3() | 65140, 65141)
+            else
+              if c < 214 then
+                if c < 213 then
+                  (LIN_d4() | 65837, 65838)
+                else
+                  (LIN_d5() | 66538, 66539)
+              else
+                if c < 215 then
+                  (LIN_d6() | 67244, 67245)
+                else
+                  (LIN_d7() | 67954, 67955)
+          else
+            if c < 220 then
+              if c < 218 then
+                if c < 217 then
+                  (LIN_d8() | 68668, 68669)
+                else
+                  (LIN_d9() | 69387, 69388)
+              else
+                if c < 219 then
+                  (LIN_da() | 70110, 70111)
+                else
+                  (LIN_db() | 70837, 70838)
+            else
+              if c < 222 then
+                if c < 221 then
+                  (LIN_dc() | 71569, 71570)
+                else
+                  (LIN_dd() | 72305, 72306)
+              else
+                if c < 223 then
+                  (LIN_de() | 73046, 73047)
+                else
+                  (LIN_df() | 73791, 73792)
+      else
+        if c < 240 then
+          if c < 232 then
+            if c < 228 then
+              if c < 226 then
+                if c < 225 then
+                  (LIN_e0() | 74540, 74541)
+                else
+                  (LIN_e1() | 75294, 75295)
+              else
+                if c < 227 then
+                  (LIN_e2() | 76052, 76053)
+                else
+                  (LIN_e3() | 76815, 76816)
+            else
+              if c < 230 then
+                if c < 229 then
+                  (LIN_e4() | 77582, 77583)
+                else
+                  (LIN_e5() | 78353, 78354)
+              else
+                if c < 231 then
+                  (LIN_e6() | 79129, 79130)
+                else
+                  (LIN_e7() | 79910, 79911)
+          else
+            if c < 236 then
+              if c < 234 then
+                if c < 233 then
+                  (LIN_e8() | 80695, 80696)
+                else
+                  (LIN_e9() | 81484, 81485)
+              else
+                if c < 235 then
+                  (LIN_ea() | 82278, 82279)
+                else
+                  (LIN_eb() | 83076, 83077)
+            else
+              if c < 238 then
+                if c < 237 then
+                  (LIN_ec() | 83879, 83880)
+                else
+                  (LIN_ed() | 84687, 84688)
+              else
+                if c < 239 then
+                  (LIN_ee() | 85499, 85500)
+                else
+                  (LIN_ef() | 86315, 86316)
+        else
+          if c < 248 then
+            if c < 244 then
+              if c < 242 then
+                if c < 241 then
+                  (LIN_f0() | 87136, 87137)
+                else
+                  (LIN_f1() | 87962, 87963)
+              else
+                if c < 243 then
+                  (LIN_f2() | 88792, 88793)
+                else
+                  (LIN_f3() | 89626, 89627)
+            else
+              if c < 246 then
+                if c < 245 then
+                  (LIN_f4() | 90466, 90467)
+                else
+                  (LIN_f5() | 91309, 91310)
+              else
+                if c < 247 then
+                  (LIN_f6() | 92158, 92159)
+                else
+                  (LIN_f7() | 93011, 93012)
+          else
+            if c < 252 then
+              if c < 250 then
+                if c < 249 then
+                  (LIN_f8() | 93868, 93869)
+                else
+                  (LIN_f9() | 94730, 94731)
+              else
+                if c < 251 then
+                  (LIN_fa() | 95597, 95598)
+                else
+                  (LIN_fb() | 96468, 96469)
+            else
+              if c < 254 then
+                if c < 253 then
+                  (LIN_fc() | 97344, 97345)
+                else
+                  (LIN_fd() | 98225, 98226)
+              else
+                if c < 255 then
+                  (LIN_fe() | 99110, 99111)
+                else
+                  (LIN_ff() | 100000, 100000)
+
+(* Whether the contrast of the colour a (its channels r1, g1, b1) and the
+   colour b is at least 4.5, with the proof when it is: the bounds of the
+   luminances are read from the table at run time, and the comparison is the
+   one CONTRAST states, made in 64 bits so that it cannot overflow *)
+#pub dataprop CONTRAST_MADE(int, int, bool) =
+  | {a,b:int} CONTRAST_YES(a, b, true) of CONTRAST(a, b, 45)
+  | {a,b:int} CONTRAST_NO(a, b, false)
+
+#pub fn contrast_45_of {r1,g1,b1,r2,g2,b2:nat | r1 < 256; g1 < 256; b1 < 256; r2 < 256; g2 < 256; b2 < 256}
+  (r1: int r1, g1: int g1, b1: int b1, r2: int r2, g2: int g2, b2: int b2)
+  : [ok:bool] (CONTRAST_MADE(r1 * 65536 + g1 * 256 + b1, r2 * 65536 + g2 * 256 + b2, ok) | bool ok)
+
+implement contrast_45_of {r1,g1,b1,r2,g2,b2} (r1, g1, b1, r2, g2, b2) = let
+  val @(pr1 | rl1, rh1) = lin_of(r1)
+  val @(pg1 | gl1, gh1) = lin_of(g1)
+  val @(pb1 | bl1, bh1) = lin_of(b1)
+  val @(pr2 | rl2, rh2) = lin_of(r2)
+  val @(pg2 | gl2, gh2) = lin_of(g2)
+  val @(pb2 | bl2, bh2) = lin_of(b2)
+  val alo = 2126 * rl1 + 7152 * gl1 + 722 * bl1
+  val ahi = 2126 * rh1 + 7152 * gh1 + 722 * bh1
+  val blo = 2126 * rl2 + 7152 * gl2 + 722 * bl2
+  val bhi = 2126 * rh2 + 7152 * gh2 + 722 * bh2
+  prval lum1 = LUMc(pr1, pg1, pb1)
+  prval lum2 = LUMc(pr2, pg2, pb2)
+  val first = 10LL * (g1int2int_int_llint(alo) + 50000000LL)
+  val first_darker = 45LL * (g1int2int_int_llint(bhi) + 50000000LL)
+  val second = 10LL * (g1int2int_int_llint(blo) + 50000000LL)
+  val second_darker = 45LL * (g1int2int_int_llint(ahi) + 50000000LL)
+in
+  if first >= first_darker then (CONTRAST_YES(CONTRAST_lighter_first(lum1, lum2)) | true)
+  else if second >= second_darker then (CONTRAST_YES(CONTRAST_lighter_second(lum1, lum2)) | true)
+  else (CONTRAST_NO() | false)
+end
+
 fn _hexdigit {d:nat | d < 16} (d: int d): [v:nat | v < 256] int v =
   if d < 10 then 48 + d else 87 + d
 

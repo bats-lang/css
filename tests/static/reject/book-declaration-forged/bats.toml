@@ -1,0 +1,9 @@
+[package]
+name = "book-declaration-forged"
+kind = "bin"
+unsafe = false
+
+[dependencies]
+"css" = ""
+"array" = ""
+"builder" = ""

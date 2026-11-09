@@ -1,0 +1,9 @@
+[package]
+name = "book-decls-free"
+kind = "bin"
+unsafe = false
+
+[dependencies]
+"css" = ""
+"array" = ""
+"builder" = ""

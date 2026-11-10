@@ -218,7 +218,43 @@ fn _style_is {css_len:nat | css_len < 16384}{g:int | 1 <= g; g <= 3}{gold_len:na
   (css: string css_len, g: int g, gold: string gold_len): bool =
   if _rope_is(_style_walk(css, g), gold) then not(_refused(gold)) else false
 
+(* The pieces counted by kind: literals, spans, the bytes of the spans, containers *)
+fun _pieces_stats {cs:$A.cells}{n:nat}{t:nat} .<t>.
+  (xs: book_pieces(cs, n, t), lits: int, spans: int, bytes: int, conts: int): @(int, int, int, int) =
+  case+ xs of
+  | ~BPNil() => @(lits, spans, bytes, conts)
+  | ~BPLit(_, rest) => _pieces_stats(rest, lits + 1, spans, bytes, conts)
+  | ~BPNum(_, rest) => _pieces_stats(rest, lits, spans, bytes, conts)
+  | ~BPSpan(_, k, rest) => _pieces_stats(rest, lits, spans + 1, bytes + k, conts)
+  | ~BPContainer(rest) => _pieces_stats(rest, lits, spans, bytes, conts + 1)
+
+(* The statistics of the pieces of css read in the grammar 1 (book_sheet_pieces) *)
+fn _pieces_of {css_len:nat | css_len < 16384} (css: string css_len): @(int, int, int, int) = let
+  var sheet : $B.builder(0) = $B.create()
+  val () = $B.bput(sheet, css)
+  val @(sheet_arr, sheet_len) = $B.to_arr(sheet)
+  val @(sheet_len_pf | sheet_barr) = $A.barr_of_arr(sheet_arr)
+  val @(sheet_frozen, sheet_view) = $A.barr_freeze(sheet_barr)
+  val read = book_sheet_read(sheet_view, sheet_len, 1, _light(), _sepia())
+  val stats = _pieces_stats(book_sheet_pieces(sheet_view, read), 0, 0, 0, 0)
+  val () = book_read_free(read)
+  val () = $A.cborrow_drop(sheet_frozen, sheet_view)
+  val () = $A.barr_free($A.barr_thaw(sheet_frozen))
+in stats end
+
 $UNITTEST.run begin
+
+(* ---- the pieces of the walk (bats-lang/css#90) ---- *)
+
+(* p{margin:0 1em}: the container id once, the spans of the type and of the value, and
+   the literals around them *)
+fn test_pieces_of_a_rule (): bool = let
+  val @(lits, spans, bytes, conts) = _pieces_of("p{margin:0 1em}")
+in conts = 1 andalso spans = 2 andalso bytes = 6 andalso lits > 0 end
+
+fn test_pieces_of_an_empty_sheet (): bool = let
+  val @(lits, spans, bytes, conts) = _pieces_of("")
+in lits = 0 andalso spans = 0 andalso bytes = 0 andalso conts = 0 end
 
 (* ---- the walk: one case for each entry of the allow-list and each refusal ---- *)
 

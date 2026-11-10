@@ -738,7 +738,7 @@ fn _span_is {l:agz}{n:nat}{cs:$A.cells}{o:nat}{k:nat | o + k <= n}{m:nat}
 #define PROP_ROWS 162
 
 (* The name of the property of row p *)
-fn _prop_name (p: int): [m:nat] string(m) =
+fn _prop_name (p: int): [m:nat | m <= 1024] string(m) =
   case+ p of
   | 0 => "color"
   | 1 => "font-style"
@@ -3516,36 +3516,111 @@ implement book_name_is {l}{n}{cs}{o}{k}{m} (src, o, k, lit) = _span_is(src, o, k
 
 implement book_prop_name (p) = _prop_name(p)
 
-fn{sink:vt@ype} _w_pe (s: !sink, pe: int): void =
-  if pe = 0 then book_lit<sink>(s, "::before")
-  else if pe = 1 then book_lit<sink>(s, "::after")
-  else if pe = 2 then book_lit<sink>(s, "::first-letter")
-  else if pe = 3 then book_lit<sink>(s, "::first-line")
-  else if pe = 4 then book_lit<sink>(s, "::marker")
+(* The sheet as a list of pieces, in the order of the sheet (keyword: book pieces,
+   bats-lang/css#90). The type is indexed by the cells cs and the length n of the
+   sheet that was walked, so a driver that holds the sheet's borrow and its
+   OUTSIDE_READ(cs) writes a piece with no proof of its own: a span is within n and
+   at most 65535 bytes (a longer one arrives chunked), a literal is at most 1024
+   bytes. BPContainer stands for the id of the container, which the driver holds.
+   sz is the number of pieces. *)
+#pub datavtype book_pieces(cs: $A.cells, n: int, sz: int) =
+  | BPNil(cs, n, 0)
+  | {m:nat | m <= 1024}{t:nat} BPLit(cs, n, t + 1) of (string m, book_pieces(cs, n, t))
+  | {t:nat} BPNum(cs, n, t + 1) of (int, book_pieces(cs, n, t))
+  | {o,k:nat | o + k <= n; k <= 65535}{t:nat} BPSpan(cs, n, t + 1) of (int o, int k, book_pieces(cs, n, t))
+  | {t:nat} BPContainer(cs, n, t + 1) of (book_pieces(cs, n, t))
+
+#pub fun book_pieces_free {cs:$A.cells}{n:nat}{t:nat} (xs: book_pieces(cs, n, t)): void
+
+fun _pieces_free {cs:$A.cells}{n:nat}{t:nat} .<t>. (xs: book_pieces(cs, n, t)): void =
+  case+ xs of
+  | ~BPNil() => ()
+  | ~BPLit(_, rest) => _pieces_free(rest)
+  | ~BPNum(_, rest) => _pieces_free(rest)
+  | ~BPSpan(_, _, rest) => _pieces_free(rest)
+  | ~BPContainer(rest) => _pieces_free(rest)
+
+implement book_pieces_free {cs}{n}{t} (xs) = _pieces_free(xs)
+
+fun _pieces_rev {cs:$A.cells}{n:nat}{a,b:nat} .<a>.
+  (xs: book_pieces(cs, n, a), acc: book_pieces(cs, n, b)): book_pieces(cs, n, a + b) =
+  case+ xs of
+  | ~BPNil() => acc
+  | ~BPLit(lit, rest) => _pieces_rev(rest, BPLit(lit, acc))
+  | ~BPNum(v, rest) => _pieces_rev(rest, BPNum(v, acc))
+  | ~BPSpan(o, k, rest) => _pieces_rev(rest, BPSpan(o, k, acc))
+  | ~BPContainer(rest) => _pieces_rev(rest, BPContainer(acc))
+
+(* What the walk puts the pieces into: the latest piece first *)
+datavtype book_acc(cs: $A.cells, n: int) =
+  | {t:nat} BAcc(cs, n) of book_pieces(cs, n, t)
+
+fn _acc_lit {n:nat}{cs:$A.cells}{m:nat | m <= 1024} (s: !book_acc(cs, n), lit: string m): void =
+  case+ s of
+  | @BAcc(xs) => let
+      val old = xs
+      val () = xs := BPLit(lit, old)
+    in fold@(s) end
+
+fn _acc_num {n:nat}{cs:$A.cells} (s: !book_acc(cs, n), v: int): void =
+  case+ s of
+  | @BAcc(xs) => let
+      val old = xs
+      val () = xs := BPNum(v, old)
+    in fold@(s) end
+
+fn _acc_container {n:nat}{cs:$A.cells} (s: !book_acc(cs, n)): void =
+  case+ s of
+  | @BAcc(xs) => let
+      val old = xs
+      val () = xs := BPContainer(old)
+    in fold@(s) end
+
+fn _acc_piece {n:nat}{cs:$A.cells}{o,k:nat | o + k <= n; k <= 65535} (s: !book_acc(cs, n), o: int o, k: int k): void =
+  case+ s of
+  | @BAcc(xs) => let
+      val old = xs
+      val () = xs := BPSpan(o, k, old)
+    in fold@(s) end
+
+(* A span of the sheet, in pieces of at most 65535 bytes *)
+fun _acc_span {n:nat}{cs:$A.cells}{o,k:nat | o + k <= n} .<k>.
+  (s: !book_acc(cs, n), o: int o, k: int k): void =
+  if k <= 65535 then _acc_piece(s, o, k)
+  else let
+    val () = _acc_piece(s, o, 65535)
+  in _acc_span(s, o + 65535, k - 65535) end
+
+fn _w_pe {n:nat}{cs:$A.cells} (s: !book_acc(cs, n), pe: int): void =
+  if pe = 0 then _acc_lit(s, "::before")
+  else if pe = 1 then _acc_lit(s, "::after")
+  else if pe = 2 then _acc_lit(s, "::first-letter")
+  else if pe = 3 then _acc_lit(s, "::first-line")
+  else if pe = 4 then _acc_lit(s, "::marker")
   else ()
 
-fn{sink:vt@ype} _w_comb (s: !sink, comb: int): void =
-  if comb = 1 then book_lit<sink>(s, " ")
-  else if comb = 2 then book_lit<sink>(s, " > ")
-  else if comb = 4 then book_lit<sink>(s, " ~ ")
+fn _w_comb {n:nat}{cs:$A.cells} (s: !book_acc(cs, n), comb: int): void =
+  if comb = 1 then _acc_lit(s, " ")
+  else if comb = 2 then _acc_lit(s, " > ")
+  else if comb = 4 then _acc_lit(s, " ~ ")
   else ()
 
-fn{sink:vt@ype} _w_attr (s: !sink, code: int): void =
-  if code = 1 then book_lit<sink>(s, "[lang")
-  else if code = 2 then book_lit<sink>(s, "[dir")
-  else if code = 3 then book_lit<sink>(s, "[title")
-  else if code = 4 then book_lit<sink>(s, "[colspan")
-  else if code = 5 then book_lit<sink>(s, "[rowspan")
-  else if code = 6 then book_lit<sink>(s, "[hidden")
-  else book_lit<sink>(s, "[data-book-epub-type")
+fn _w_attr {n:nat}{cs:$A.cells} (s: !book_acc(cs, n), code: int): void =
+  if code = 1 then _acc_lit(s, "[lang")
+  else if code = 2 then _acc_lit(s, "[dir")
+  else if code = 3 then _acc_lit(s, "[title")
+  else if code = 4 then _acc_lit(s, "[colspan")
+  else if code = 5 then _acc_lit(s, "[rowspan")
+  else if code = 6 then _acc_lit(s, "[hidden")
+  else _acc_lit(s, "[data-book-epub-type")
 
-fn{sink:vt@ype} _w_oper (s: !sink, oper: int): void =
-  if oper = 0 then book_lit<sink>(s, "=")
-  else if oper = 1 then book_lit<sink>(s, "~=")
-  else if oper = 2 then book_lit<sink>(s, "|=")
-  else if oper = 3 then book_lit<sink>(s, "^=")
-  else if oper = 4 then book_lit<sink>(s, "$=")
-  else book_lit<sink>(s, "*=")
+fn _w_oper {n:nat}{cs:$A.cells} (s: !book_acc(cs, n), oper: int): void =
+  if oper = 0 then _acc_lit(s, "=")
+  else if oper = 1 then _acc_lit(s, "~=")
+  else if oper = 2 then _acc_lit(s, "|=")
+  else if oper = 3 then _acc_lit(s, "^=")
+  else if oper = 4 then _acc_lit(s, "$=")
+  else _acc_lit(s, "*=")
 
 (* The span of the type selector of a compound, with k = 0 when it has none *)
 fun _type_span {cs:$A.cells}{n:nat}{r:nat}{t:nat} .<r, t>.
@@ -3591,208 +3666,208 @@ implement book_has_pseudo {cs}{n}{r}{t} (xs, code) = _has_pseudo(xs, code)
 
 (* The name that a book element of this type has: html and body are written as
    such, so that their case is not the book's *)
-fn{sink:vt@ype} _w_name {l:agz}{n:nat}{cs:$A.cells}{o,k:nat | o + k <= n}
-  (s: !sink, src: !$A.cborrow(l, n, cs), o: int o, k: int k): void =
-  if book_name_is(src, o, k, "html") then book_lit<sink>(s, "html")
-  else if book_name_is(src, o, k, "body") then book_lit<sink>(s, "body")
-  else book_span<sink>(s, src, o, k)
+fn _w_name {l:agz}{n:nat}{cs:$A.cells}{o,k:nat | o + k <= n}
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs), o: int o, k: int k): void =
+  if book_name_is(src, o, k, "html") then _acc_lit(s, "html")
+  else if book_name_is(src, o, k, "body") then _acc_lit(s, "body")
+  else _acc_span(s, o, k)
 
 (* The type selector of a compound; marker says that it is the compound of the
    top (every compound of the top is of a book element) and not of a :not() *)
-fn{sink:vt@ype} _w_type {l:agz}{n:nat}{cs:$A.cells}{r:nat}{t:nat}
-  (s: !sink, src: !$A.cborrow(l, n, cs), xs: !book_simples(cs, n, r, t), marker: bool): void = let
+fn _w_type {l:agz}{n:nat}{cs:$A.cells}{r:nat}{t:nat}
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs), xs: !book_simples(cs, n, r, t), marker: bool): void = let
   val @(o, k) = book_type_span(xs)
 in
   if k >= 1 then
-    (if book_name_is(src, o, k, "html") then book_lit<sink>(s, "div:where([data-book-element=\"html\"])")
-     else if book_name_is(src, o, k, "body") then book_lit<sink>(s, "div:where([data-book-element=\"body\"])")
+    (if book_name_is(src, o, k, "html") then _acc_lit(s, "div:where([data-book-element=\"html\"])")
+     else if book_name_is(src, o, k, "body") then _acc_lit(s, "div:where([data-book-element=\"body\"])")
      else if book_tag_known(src, o, k) then let
-       val () = book_span<sink>(s, src, o, k)
-     in if marker then book_lit<sink>(s, ":where([data-book-element])") else () end
+       val () = _acc_span(s, o, k)
+     in if marker then _acc_lit(s, ":where([data-book-element])") else () end
      else let
-       val () = book_lit<sink>(s, ":is(div, span):where([data-book-element=\"")
-       val () = book_span<sink>(s, src, o, k)
-     in book_lit<sink>(s, "\"])") end)
+       val () = _acc_lit(s, ":is(div, span):where([data-book-element=\"")
+       val () = _acc_span(s, o, k)
+     in _acc_lit(s, "\"])") end)
   else if marker then
-    (if book_has_pseudo(xs, 9) then book_lit<sink>(s, "div:where([data-book-element=\"html\"])")
-     else book_lit<sink>(s, ":where([data-book-element])"))
+    (if book_has_pseudo(xs, 9) then _acc_lit(s, "div:where([data-book-element=\"html\"])")
+     else _acc_lit(s, ":where([data-book-element])"))
   else ()
 end
 
 (* An+B *)
-fn{sink:vt@ype} _w_anb (s: !sink, a: int, b: int): void =
+fn _w_anb {n:nat}{cs:$A.cells} (s: !book_acc(cs, n), a: int, b: int): void =
   if a = 0 then
-    (if b < 0 then let val () = book_lit<sink>(s, "-") in book_num<sink>(s, 0 - b) end
-     else book_num<sink>(s, b))
+    (if b < 0 then let val () = _acc_lit(s, "-") in _acc_num(s, 0 - b) end
+     else _acc_num(s, b))
   else let
     val () =
       (if a = 1 then ()
-       else if a = ~1 then book_lit<sink>(s, "-")
-       else if a < 0 then let val () = book_lit<sink>(s, "-") in book_num<sink>(s, 0 - a) end
-       else book_num<sink>(s, a))
-    val () = book_lit<sink>(s, "n")
+       else if a = ~1 then _acc_lit(s, "-")
+       else if a < 0 then let val () = _acc_lit(s, "-") in _acc_num(s, 0 - a) end
+       else _acc_num(s, a))
+    val () = _acc_lit(s, "n")
   in
-    if b > 0 then let val () = book_lit<sink>(s, "+") in book_num<sink>(s, b) end
-    else if b < 0 then let val () = book_lit<sink>(s, "-") in book_num<sink>(s, 0 - b) end
+    if b > 0 then let val () = _acc_lit(s, "+") in _acc_num(s, b) end
+    else if b < 0 then let val () = _acc_lit(s, "-") in _acc_num(s, 0 - b) end
     else ()
   end
 
 (* The set of the book's elements that a child index counts: all of them, or
    (to is the span of the type) those of the type *)
-fn{sink:vt@ype} _w_of {l:agz}{n:nat}{cs:$A.cells}{to,tk:nat | to + tk <= n}
-  (s: !sink, src: !$A.cborrow(l, n, cs), of_type: bool, to: int to, tk: int tk): void =
+fn _w_of {l:agz}{n:nat}{cs:$A.cells}{to,tk:nat | to + tk <= n}
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs), of_type: bool, to: int to, tk: int tk): void =
   if of_type then let
-    val () = book_lit<sink>(s, " of :where([data-book-element=\"")
-    val () = _w_name<sink>(s, src, to, tk)
-  in book_lit<sink>(s, "\"]))") end
-  else book_lit<sink>(s, " of :where([data-book-element]))")
+    val () = _acc_lit(s, " of :where([data-book-element=\"")
+    val () = _w_name(s, src, to, tk)
+  in _acc_lit(s, "\"]))") end
+  else _acc_lit(s, " of :where([data-book-element]))")
 
-fn{sink:vt@ype} _w_pseudo {l:agz}{n:nat}{cs:$A.cells}{to,tk:nat | to + tk <= n}
-  (s: !sink, src: !$A.cborrow(l, n, cs), code: int, to: int to, tk: int tk): void =
+fn _w_pseudo {l:agz}{n:nat}{cs:$A.cells}{to,tk:nat | to + tk <= n}
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs), code: int, to: int to, tk: int tk): void =
   if code = 1 then let
-    val () = book_lit<sink>(s, ":nth-child(1")
-  in _w_of<sink>(s, src, false, to, tk) end
+    val () = _acc_lit(s, ":nth-child(1")
+  in _w_of(s, src, false, to, tk) end
   else if code = 2 then let
-    val () = book_lit<sink>(s, ":nth-last-child(1")
-  in _w_of<sink>(s, src, false, to, tk) end
+    val () = _acc_lit(s, ":nth-last-child(1")
+  in _w_of(s, src, false, to, tk) end
   else if code = 3 then let
-    val () = book_lit<sink>(s, ":nth-child(1")
-    val () = _w_of<sink>(s, src, false, to, tk)
-    val () = book_lit<sink>(s, ":nth-last-child(1")
-  in _w_of<sink>(s, src, false, to, tk) end
+    val () = _acc_lit(s, ":nth-child(1")
+    val () = _w_of(s, src, false, to, tk)
+    val () = _acc_lit(s, ":nth-last-child(1")
+  in _w_of(s, src, false, to, tk) end
   else if code = 4 then let
-    val () = book_lit<sink>(s, ":nth-child(1")
-  in _w_of<sink>(s, src, true, to, tk) end
+    val () = _acc_lit(s, ":nth-child(1")
+  in _w_of(s, src, true, to, tk) end
   else if code = 5 then let
-    val () = book_lit<sink>(s, ":nth-last-child(1")
-  in _w_of<sink>(s, src, true, to, tk) end
+    val () = _acc_lit(s, ":nth-last-child(1")
+  in _w_of(s, src, true, to, tk) end
   else if code = 6 then let
-    val () = book_lit<sink>(s, ":nth-child(1")
-    val () = _w_of<sink>(s, src, true, to, tk)
-    val () = book_lit<sink>(s, ":nth-last-child(1")
-  in _w_of<sink>(s, src, true, to, tk) end
-  else if code = 7 then book_lit<sink>(s, ":link")
-  else if code = 8 then book_lit<sink>(s, ":empty")
+    val () = _acc_lit(s, ":nth-child(1")
+    val () = _w_of(s, src, true, to, tk)
+    val () = _acc_lit(s, ":nth-last-child(1")
+  in _w_of(s, src, true, to, tk) end
+  else if code = 7 then _acc_lit(s, ":link")
+  else if code = 8 then _acc_lit(s, ":empty")
   else if code = 9 then
-    (if tk >= 1 then book_lit<sink>(s, ":where([data-book-element=\"html\"])") else ())
+    (if tk >= 1 then _acc_lit(s, ":where([data-book-element=\"html\"])") else ())
   else ()
 
 (* The simple selectors of a compound except its type; (to, tk) is the type's span *)
-fun{sink:vt@ype} _w_rest {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}
+fun _w_rest {l:agz}{n:nat}{cs:$A.cells}
   {r:nat}{t:nat}{to,tk:nat | to + tk <= n} .<r, t>.
-  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs),
    xs: !book_simples(cs, n, r, t), to: int to, tk: int tk): void =
   case+ xs of
   | BSimplesNil() => ()
-  | BSType(_ | _, _, rest) => _w_rest<sink>(s, src, cid, co, ck, rest, to, tk)
-  | BSUniversal(rest) => _w_rest<sink>(s, src, cid, co, ck, rest, to, tk)
+  | BSType(_ | _, _, rest) => _w_rest(s, src, rest, to, tk)
+  | BSUniversal(rest) => _w_rest(s, src, rest, to, tk)
   | BSClass(_ | o, k, rest) => let
-      val () = book_lit<sink>(s, "[data-book-class~=\"")
-      val () = book_span<sink>(s, src, o, k)
-      val () = book_lit<sink>(s, "\"]")
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _acc_lit(s, "[data-book-class~=\"")
+      val () = _acc_span(s, o, k)
+      val () = _acc_lit(s, "\"]")
+    in _w_rest(s, src, rest, to, tk) end
   | BSId(_ | o, k, rest) => let
-      val () = book_lit<sink>(s, ":is([data-book-id=\"")
-      val () = book_span<sink>(s, src, o, k)
-      val () = book_lit<sink>(s, "\"], #")
-      val () = book_span<sink>(s, cid, co, ck)
-      val () = book_lit<sink>(s, ")")
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _acc_lit(s, ":is([data-book-id=\"")
+      val () = _acc_span(s, o, k)
+      val () = _acc_lit(s, "\"], #")
+      val () = _acc_container(s)
+      val () = _acc_lit(s, ")")
+    in _w_rest(s, src, rest, to, tk) end
   | BSLang(_ | o, k, rest) => let
-      val () = book_lit<sink>(s, ":lang(")
-      val () = book_span<sink>(s, src, o, k)
-      val () = book_lit<sink>(s, ")")
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _acc_lit(s, ":lang(")
+      val () = _acc_span(s, o, k)
+      val () = _acc_lit(s, ")")
+    in _w_rest(s, src, rest, to, tk) end
   | BSAttrIdent(_ | code, oper, o, k, rest) => let
-      val () = _w_attr<sink>(s, code)
-      val () = _w_oper<sink>(s, oper)
-      val () = book_lit<sink>(s, "\"")
-      val () = book_span<sink>(s, src, o, k)
-      val () = book_lit<sink>(s, "\"]")
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _w_attr(s, code)
+      val () = _w_oper(s, oper)
+      val () = _acc_lit(s, "\"")
+      val () = _acc_span(s, o, k)
+      val () = _acc_lit(s, "\"]")
+    in _w_rest(s, src, rest, to, tk) end
   | BSAttrString(_ | code, oper, o, k, rest) => let
-      val () = _w_attr<sink>(s, code)
-      val () = _w_oper<sink>(s, oper)
-      val () = book_span<sink>(s, src, o, k)
-      val () = book_lit<sink>(s, "]")
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _w_attr(s, code)
+      val () = _w_oper(s, oper)
+      val () = _acc_span(s, o, k)
+      val () = _acc_lit(s, "]")
+    in _w_rest(s, src, rest, to, tk) end
   | BSAttrExists(code, rest) => let
-      val () = _w_attr<sink>(s, code)
-      val () = book_lit<sink>(s, "]")
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _w_attr(s, code)
+      val () = _acc_lit(s, "]")
+    in _w_rest(s, src, rest, to, tk) end
   | BSPseudo(code, rest) => let
-      val () = _w_pseudo<sink>(s, src, code, to, tk)
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _w_pseudo(s, src, code, to, tk)
+    in _w_rest(s, src, rest, to, tk) end
   | BSNth(kind, a, b, rest) => let
-      val () = (if kind = 0 then book_lit<sink>(s, ":nth-child(")
-                else if kind = 1 then book_lit<sink>(s, ":nth-last-child(")
-                else if kind = 2 then book_lit<sink>(s, ":nth-child(")
-                else book_lit<sink>(s, ":nth-last-child("))
-      val () = _w_anb<sink>(s, a, b)
-      val () = _w_of<sink>(s, src, kind >= 2, to, tk)
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = (if kind = 0 then _acc_lit(s, ":nth-child(")
+                else if kind = 1 then _acc_lit(s, ":nth-last-child(")
+                else if kind = 2 then _acc_lit(s, ":nth-child(")
+                else _acc_lit(s, ":nth-last-child("))
+      val () = _w_anb(s, a, b)
+      val () = _w_of(s, src, kind >= 2, to, tk)
+    in _w_rest(s, src, rest, to, tk) end
   | BSNot(inner, rest) => let
-      val () = book_lit<sink>(s, ":not(")
+      val () = _acc_lit(s, ":not(")
       val @(io, ik) = book_type_span(inner)
-      val () = _w_type<sink>(s, src, inner, false)
-      val () = _w_rest<sink>(s, src, cid, co, ck, inner, io, ik)
-      val () = book_lit<sink>(s, ")")
-    in _w_rest<sink>(s, src, cid, co, ck, rest, to, tk) end
+      val () = _w_type(s, src, inner, false)
+      val () = _w_rest(s, src, inner, io, ik)
+      val () = _acc_lit(s, ")")
+    in _w_rest(s, src, rest, to, tk) end
 
 (* A compound of the top: its type, always limited to the book's elements, and the rest *)
-fn{sink:vt@ype} _w_compound {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}{t:nat}
-  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+fn _w_compound {l:agz}{n:nat}{cs:$A.cells}{t:nat}
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs),
    xs: !book_simples(cs, n, 1, t)): void = let
   val @(to, tk) = book_type_span(xs)
-  val () = _w_type<sink>(s, src, xs, true)
-in _w_rest<sink>(s, src, cid, co, ck, xs, to, tk) end
+  val () = _w_type(s, src, xs, true)
+in _w_rest(s, src, xs, to, tk) end
 
 (* A complex selector's steps. A step after + is written with A + B as
    :is(A + B, A + :where(:not([data-book-element])) + B): app nodes between
    A and B do not break the match. The pseudo-element, which :is() cannot hold,
    follows the closing parenthesis. *)
-fun{sink:vt@ype} _w_steps {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}{t:nat} .<t>.
-  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+fun _w_steps {l:agz}{n:nat}{cs:$A.cells}{t:nat} .<t>.
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs),
    xs: !book_steps(cs, n, t)): void =
   case+ xs of
   | BStepsNil() => ()
   | BStep(comb, pe, sm, rest) => let
-      val () = _w_comb<sink>(s, comb)
+      val () = _w_comb(s, comb)
     in
       case+ rest of
       | BStep(3, pe2, sm2, rest2) => let
-          val () = book_lit<sink>(s, ":is(")
-          val () = _w_compound<sink>(s, src, cid, co, ck, sm)
-          val () = book_lit<sink>(s, " + ")
-          val () = _w_compound<sink>(s, src, cid, co, ck, sm2)
-          val () = book_lit<sink>(s, ", ")
-          val () = _w_compound<sink>(s, src, cid, co, ck, sm)
-          val () = book_lit<sink>(s, " + :where(:not([data-book-element])) + ")
-          val () = _w_compound<sink>(s, src, cid, co, ck, sm2)
-          val () = book_lit<sink>(s, ")")
-          val () = _w_pe<sink>(s, pe2)
-        in _w_steps<sink>(s, src, cid, co, ck, rest2) end
+          val () = _acc_lit(s, ":is(")
+          val () = _w_compound(s, src, sm)
+          val () = _acc_lit(s, " + ")
+          val () = _w_compound(s, src, sm2)
+          val () = _acc_lit(s, ", ")
+          val () = _w_compound(s, src, sm)
+          val () = _acc_lit(s, " + :where(:not([data-book-element])) + ")
+          val () = _w_compound(s, src, sm2)
+          val () = _acc_lit(s, ")")
+          val () = _w_pe(s, pe2)
+        in _w_steps(s, src, rest2) end
       | _ => let
-          val () = _w_compound<sink>(s, src, cid, co, ck, sm)
-          val () = _w_pe<sink>(s, pe)
-        in _w_steps<sink>(s, src, cid, co, ck, rest) end
+          val () = _w_compound(s, src, sm)
+          val () = _w_pe(s, pe)
+        in _w_steps(s, src, rest) end
     end
 
 (* A selector list: each complex selector starts with the container's prefix *)
-fun{sink:vt@ype} _w_sels {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}{t:nat} .<t>.
-  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+fun _w_sels {l:agz}{n:nat}{cs:$A.cells}{t:nat} .<t>.
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs),
    xs: !book_sels(cs, n, t)): void =
   case+ xs of
   | BSelsNil() => ()
   | BSel(steps, rest) => let
-      val () = book_lit<sink>(s, "[data-book-container=\"")
-      val () = book_span<sink>(s, cid, co, ck)
-      val () = book_lit<sink>(s, "\"] ")
-      val () = _w_steps<sink>(s, src, cid, co, ck, steps)
+      val () = _acc_lit(s, "[data-book-container=\"")
+      val () = _acc_container(s)
+      val () = _acc_lit(s, "\"] ")
+      val () = _w_steps(s, src, steps)
       val () = (case+ rest of
                 | BSelsNil() => ()
-                | BSel(_, _) => book_lit<sink>(s, ","))
-    in _w_sels<sink>(s, src, cid, co, ck, rest) end
+                | BSel(_, _) => _acc_lit(s, ","))
+    in _w_sels(s, src, rest) end
 
 (* ============================================================
    Faces: a family's number is its place among the book's distinct families
@@ -3874,71 +3949,71 @@ implement book_family_any {l}{n}{cs}{g}{a,t} (src, faces, xs) = _family_any(src,
 
 (* The items of a font-family value that are written, separated by commas; a
    declared family is written as its generated name book-<container>-<number> *)
-fun{sink:vt@ype} _w_family {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}
+fun _w_family {l:agz}{n:nat}{cs:$A.cells}
   {g:int}{a,t:nat} .<t>.
-  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs),
    faces: !book_faces(cs, n, g, a), xs: !book_family(cs, n, t), first: bool): void =
   case+ xs of
   | BFamilyNil() => ()
   | BFamilyGeneric(_ | o, k, rest) => let
-      val () = (if first then () else book_lit<sink>(s, ","))
-      val () = book_span<sink>(s, src, o, k)
-    in _w_family<sink>(s, src, cid, co, ck, faces, rest, false) end
+      val () = (if first then () else _acc_lit(s, ","))
+      val () = _acc_span(s, o, k)
+    in _w_family(s, src, faces, rest, false) end
   | BFamilyNamed(o, k, rest) => let
       val num = book_face_number(src, faces, o, k)
     in
       if num >= 0 then let
-        val () = (if first then () else book_lit<sink>(s, ","))
-        val () = book_lit<sink>(s, "book-")
-        val () = book_span<sink>(s, cid, co, ck)
-        val () = book_lit<sink>(s, "-")
-        val () = book_num<sink>(s, num)
-      in _w_family<sink>(s, src, cid, co, ck, faces, rest, false) end
-      else _w_family<sink>(s, src, cid, co, ck, faces, rest, first)
+        val () = (if first then () else _acc_lit(s, ","))
+        val () = _acc_lit(s, "book-")
+        val () = _acc_container(s)
+        val () = _acc_lit(s, "-")
+        val () = _acc_num(s, num)
+      in _w_family(s, src, faces, rest, false) end
+      else _w_family(s, src, faces, rest, first)
     end
 
 (* The declarations of a block *)
-fun{sink:vt@ype} _w_decls {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}
+fun _w_decls {l:agz}{n:nat}{cs:$A.cells}
   {g:int}{a,t:nat} .<t>.
-  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs),
    faces: !book_faces(cs, n, g, a), xs: !book_decls(cs, n, g, t)): void =
   case+ xs of
   | BDeclsNil() => ()
   | BDecl(_ | p, o, k, rest) => let
-      val () = book_lit<sink>(s, book_prop_name(p))
-      val () = book_lit<sink>(s, ":")
-      val () = book_span<sink>(s, src, o, k)
-      val () = book_lit<sink>(s, ";")
-    in _w_decls<sink>(s, src, cid, co, ck, faces, rest) end
+      val () = _acc_lit(s, _prop_name(p))
+      val () = _acc_lit(s, ":")
+      val () = _acc_span(s, o, k)
+      val () = _acc_lit(s, ";")
+    in _w_decls(s, src, faces, rest) end
   | BDeclFamily(fam, rest) => let
       val () =
         (if book_family_any(src, faces, fam) then let
-           val () = book_lit<sink>(s, "font-family:")
-           val () = _w_family<sink>(s, src, cid, co, ck, faces, fam, true)
-         in book_lit<sink>(s, ";") end
+           val () = _acc_lit(s, "font-family:")
+           val () = _w_family(s, src, faces, fam, true)
+         in _acc_lit(s, ";") end
          else ())
-    in _w_decls<sink>(s, src, cid, co, ck, faces, rest) end
+    in _w_decls(s, src, faces, rest) end
 
 (* The rules of a sheet or of a condition's block *)
-fun{sink:vt@ype} _w_rules {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}
+fun _w_rules {l:agz}{n:nat}{cs:$A.cells}
   {g:int}{a,t:nat} .<t>.
-  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+  (s: !book_acc(cs, n), src: !$A.cborrow(l, n, cs),
    faces: !book_faces(cs, n, g, a), xs: !book_rules(cs, n, g, t)): void =
   case+ xs of
   | BRulesNil() => ()
   | BRule(sels, decls, rest) => let
-      val () = _w_sels<sink>(s, src, cid, co, ck, sels)
-      val () = book_lit<sink>(s, "{")
-      val () = _w_decls<sink>(s, src, cid, co, ck, faces, decls)
-      val () = book_lit<sink>(s, "}")
-    in _w_rules<sink>(s, src, cid, co, ck, faces, rest) end
+      val () = _w_sels(s, src, sels)
+      val () = _acc_lit(s, "{")
+      val () = _w_decls(s, src, faces, decls)
+      val () = _acc_lit(s, "}")
+    in _w_rules(s, src, faces, rest) end
   | BCondition(_ | kind, o, k, inner, rest) => let
-      val () = (if kind = 0 then book_lit<sink>(s, "@media ") else book_lit<sink>(s, "@supports "))
-      val () = book_span<sink>(s, src, o, k)
-      val () = book_lit<sink>(s, "{")
-      val () = _w_rules<sink>(s, src, cid, co, ck, faces, inner)
-      val () = book_lit<sink>(s, "}")
-    in _w_rules<sink>(s, src, cid, co, ck, faces, rest) end
+      val () = (if kind = 0 then _acc_lit(s, "@media ") else _acc_lit(s, "@supports "))
+      val () = _acc_span(s, o, k)
+      val () = _acc_lit(s, "{")
+      val () = _w_rules(s, src, faces, inner)
+      val () = _acc_lit(s, "}")
+    in _w_rules(s, src, faces, rest) end
 
 (* Hands a sink the text of a sheet that was read: every selector starts with the
    prefix of the container cid (an identifier: pf), every compound is limited to
@@ -3950,9 +4025,43 @@ fun{sink:vt@ype} _w_rules {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cel
   (s: !sink, src: !$A.cborrow(l, n, cs), read: !book_read(cs, n, g),
    cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck, pf: CSS_IDENT(cs2, co, ck)): void
 
+(* The pieces of a sheet that was read (keyword: book pieces): what book_sheet_walk
+   hands a sink, as a list typed by the sheet's cs and n, with the container id as
+   one piece (BPContainer) *)
+#pub fun book_sheet_pieces {l:agz}{n:nat}{cs:$A.cells}{g:int}
+  (src: !$A.cborrow(l, n, cs), read: !book_read(cs, n, g)): [t:nat] book_pieces(cs, n, t)
+
+implement book_sheet_pieces {l}{n}{cs}{g} (src, read) = let
+  var acc : book_acc(cs, n) = BAcc(BPNil())
+  val () = (case+ read of
+            | BookRead(rules, _, faces) => _w_rules(acc, src, faces, rules))
+in
+  case+ acc of
+  | ~BAcc(xs) => _pieces_rev(xs, BPNil())
+end
+
+(* Hands the pieces to a sink with the sink's hooks; the container id piece is the
+   span (co, ck) of cid *)
+fun{sink:vt@ype} _replay {l:agz}{n:nat}{cs:$A.cells}{l2:agz}{n2:nat}{cs2:$A.cells}{co,ck:nat | co + ck <= n2}{t:nat} .<t>.
+  (s: !sink, src: !$A.cborrow(l, n, cs), cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck,
+   xs: book_pieces(cs, n, t)): void =
+  case+ xs of
+  | ~BPNil() => ()
+  | ~BPLit(lit, rest) => let
+      val () = book_lit<sink>(s, lit)
+    in _replay<sink>(s, src, cid, co, ck, rest) end
+  | ~BPNum(v, rest) => let
+      val () = book_num<sink>(s, v)
+    in _replay<sink>(s, src, cid, co, ck, rest) end
+  | ~BPSpan(o, k, rest) => let
+      val () = book_span<sink>(s, src, o, k)
+    in _replay<sink>(s, src, cid, co, ck, rest) end
+  | ~BPContainer(rest) => let
+      val () = book_span<sink>(s, cid, co, ck)
+    in _replay<sink>(s, src, cid, co, ck, rest) end
+
 implement{sink} book_sheet_walk {l}{n}{cs}{g}{l2}{n2}{cs2}{co,ck} (s, src, read, cid, co, ck, pf) =
-  case+ read of
-  | BookRead(rules, _, faces) => _w_rules<sink>(s, src, cid, co, ck, faces, rules)
+  _replay<sink>(s, src, cid, co, ck, book_sheet_pieces(src, read))
 
 (* Hands a sink the declarations of a style attribute (read with book_style_read);
    the font-family is mapped by the faces of the sheet read *)
@@ -3961,9 +4070,22 @@ implement{sink} book_sheet_walk {l}{n}{cs}{g}{l2}{n2}{cs2}{co,ck} (s, src, read,
   (s: !sink, src: !$A.cborrow(l, n, cs), read: !book_read(cs, n, g), decls: !book_decls(cs, n, g, t),
    cid: !$A.cborrow(l2, n2, cs2), co: int co, ck: int ck, pf: CSS_IDENT(cs2, co, ck)): void
 
+(* The pieces of a style attribute (keyword: book pieces) *)
+#pub fun book_style_pieces {l:agz}{n:nat}{cs:$A.cells}{g:int}{t:nat}
+  (src: !$A.cborrow(l, n, cs), read: !book_read(cs, n, g), decls: !book_decls(cs, n, g, t))
+  : [u:nat] book_pieces(cs, n, u)
+
+implement book_style_pieces {l}{n}{cs}{g}{t} (src, read, decls) = let
+  var acc : book_acc(cs, n) = BAcc(BPNil())
+  val () = (case+ read of
+            | BookRead(_, _, faces) => _w_decls(acc, src, faces, decls))
+in
+  case+ acc of
+  | ~BAcc(xs) => _pieces_rev(xs, BPNil())
+end
+
 implement{sink} book_style_walk {l}{n}{cs}{g}{t}{l2}{n2}{cs2}{co,ck} (s, src, read, decls, cid, co, ck, pf) =
-  case+ read of
-  | BookRead(_, _, faces) => _w_decls<sink>(s, src, cid, co, ck, faces, decls)
+  _replay<sink>(s, src, cid, co, ck, book_style_pieces(src, read, decls))
 
 (* ============================================================
    What the app resolves: the targets of @import and the sources of faces

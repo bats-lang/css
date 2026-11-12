@@ -2,14 +2,6 @@
 
 CSS value types and rendering for the [Bats](https://github.com/bats-lang) programming language.
 
-## Features
-
-- CSS units (`PX`, `EM`, `REM`, `PERCENT`, `VW`, `DEG`, `MS`, ...)
-- Colors (`RGB`, `RGBA`, `Named`), values, declarations
-- Selectors (`Class`, `Id`, `Tag`, `Pseudo`, `Child`, `Descendant`) and
-  rules, size-indexed so emitting into a builder needs no runtime check
-- `class_text`: generated class names (`caa` .. `czz`), allocation-free
-
 ## Usage
 
 There is no GC: colors, values, selectors, declarations and rules are

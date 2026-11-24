@@ -632,4 +632,41 @@ fn test_contrast_same (): bool = let
   val @(pf | ok) = contrast_45_of(200, 10, 10, 200, 10, 10)
 in not(ok) end
 
+(* contrast_45_int_of, the form with no 64-bit operation (css#99): the same cases *)
+fn test_contrast_int_black_on_white (): bool = let
+  val @(pf | ok) = contrast_45_int_of(0, 0, 0, 255, 255, 255)
+in ok end
+
+fn test_contrast_int_white_on_black (): bool = let
+  val @(pf | ok) = contrast_45_int_of(255, 255, 255, 0, 0, 0)
+in ok end
+
+fn test_contrast_int_grey_767676 (): bool = let
+  val @(pf | ok) = contrast_45_int_of(118, 118, 118, 255, 255, 255)
+in ok end
+
+fn test_contrast_int_grey_777777 (): bool = let
+  val @(pf | ok) = contrast_45_int_of(119, 119, 119, 255, 255, 255)
+in not(ok) end
+
+fn test_contrast_int_same (): bool = let
+  val @(pf | ok) = contrast_45_int_of(200, 10, 10, 200, 10, 10)
+in not(ok) end
+
+(* the two forms answer alike on a grid of pairs, the old form (64 bits) kept for one version *)
+fn _same_answer {a,b,c,d,e,f:nat | a < 256; b < 256; c < 256; d < 256; e < 256; f < 256}
+  (a: int a, b: int b, c: int c, d: int d, e: int e, f: int f): bool = let
+  val @(p1 | x) = contrast_45_of(a, b, c, d, e, f)
+  val @(p2 | y) = contrast_45_int_of(a, b, c, d, e, f)
+in x = y end
+
+fn test_contrast_int_agrees_with_old (): bool =
+  _same_answer(0, 0, 0, 0, 0, 1) andalso _same_answer(0, 0, 0, 255, 255, 255)
+  andalso _same_answer(255, 255, 255, 0, 0, 0) andalso _same_answer(118, 118, 118, 255, 255, 255)
+  andalso _same_answer(119, 119, 119, 255, 255, 255) andalso _same_answer(255, 255, 255, 118, 118, 118)
+  andalso _same_answer(255, 0, 0, 255, 255, 255) andalso _same_answer(0, 0, 255, 255, 255, 255)
+  andalso _same_answer(0, 255, 0, 0, 0, 0) andalso _same_answer(255, 255, 0, 0, 0, 255)
+  andalso _same_answer(200, 10, 10, 10, 200, 10) andalso _same_answer(90, 90, 90, 200, 200, 200)
+  andalso _same_answer(128, 128, 128, 0, 0, 0) andalso _same_answer(128, 128, 128, 255, 255, 255)
+
 end

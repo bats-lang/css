@@ -1094,6 +1094,37 @@ in
   else (CONTRAST_NO() | false)
 end
 
+(* The same answer as contrast_45_of with no 64-bit operation, which the wasm
+   prelude does not have (css#99): 10 * (a + P) >= 45 * (b + P) is 2 * (a + P) >=
+   9 * (b + P), whose left side is at most 2.1e9 < 2^31 and whose right side
+   would overflow, so it is b + P <= floor(2 * (a + P) / 9), the same for integers *)
+#pub fn contrast_45_int_of {r1,g1,b1,r2,g2,b2:nat | r1 < 256; g1 < 256; b1 < 256; r2 < 256; g2 < 256; b2 < 256}
+  (r1: int r1, g1: int g1, b1: int b1, r2: int r2, g2: int g2, b2: int b2)
+  : [ok:bool] (CONTRAST_MADE(r1 * 65536 + g1 * 256 + b1, r2 * 65536 + g2 * 256 + b2, ok) | bool ok)
+
+implement contrast_45_int_of {r1,g1,b1,r2,g2,b2} (r1, g1, b1, r2, g2, b2) = let
+  val @(pr1 | rl1, rh1) = lin_of(r1)
+  val @(pg1 | gl1, gh1) = lin_of(g1)
+  val @(pb1 | bl1, bh1) = lin_of(b1)
+  val @(pr2 | rl2, rh2) = lin_of(r2)
+  val @(pg2 | gl2, gh2) = lin_of(g2)
+  val @(pb2 | bl2, bh2) = lin_of(b2)
+  val alo = 2126 * rl1 + 7152 * gl1 + 722 * bl1
+  val ahi = 2126 * rh1 + 7152 * gh1 + 722 * bh1
+  val blo = 2126 * rl2 + 7152 * gl2 + 722 * bl2
+  val bhi = 2126 * rh2 + 7152 * gh2 + 722 * bh2
+  prval lum1 = LUMc(pr1, pg1, pb1)
+  prval lum2 = LUMc(pr2, pg2, pb2)
+  val first = (2 * (alo + 50000000)) / 9
+  val first_darker = bhi + 50000000
+  val second = (2 * (blo + 50000000)) / 9
+  val second_darker = ahi + 50000000
+in
+  if first_darker <= first then (CONTRAST_YES(CONTRAST_lighter_first(lum1, lum2)) | true)
+  else if second_darker <= second then (CONTRAST_YES(CONTRAST_lighter_second(lum1, lum2)) | true)
+  else (CONTRAST_NO() | false)
+end
+
 fn _hexdigit {d:nat | d < 16} (d: int d): [v:nat | v < 256] int v =
   if d < 10 then 48 + d else 87 + d
 

@@ -1553,10 +1553,10 @@ in
           val r = h1 * 16 + h2
           val g = h3 * 16 + h4
           val b = h5 * 16 + h6
-          val @(pl | okl) = contrast_45_of(r, g, b, lr, lg, lb)
+          val @(pl | okl) = contrast_45_int_of(r, g, b, lr, lg, lb)
         in
           if okl then let
-            val @(ps | oks) = contrast_45_of(r, g, b, sr, sg, sb)
+            val @(ps | oks) = contrast_45_int_of(r, g, b, sr, sg, sb)
           in
             if oks then let
               prval CONTRAST_YES(cl) = pl
@@ -1601,10 +1601,10 @@ in
           val r = h1 * 17
           val g = h2 * 17
           val b = h3 * 17
-          val @(pl | okl) = contrast_45_of(r, g, b, lr, lg, lb)
+          val @(pl | okl) = contrast_45_int_of(r, g, b, lr, lg, lb)
         in
           if okl then let
-            val @(ps | oks) = contrast_45_of(r, g, b, sr, sg, sb)
+            val @(ps | oks) = contrast_45_int_of(r, g, b, sr, sg, sb)
           in
             if oks then let
               prval CONTRAST_YES(cl) = pl
